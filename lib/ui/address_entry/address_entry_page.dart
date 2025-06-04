@@ -14,11 +14,11 @@ class AddressEntryPage extends StatelessWidget {
 
   // Define the list of states for the dropdown
   static const List<DropdownItem> _states = [
-    DropdownItem(id: 'MA', title: 'Massachusetts', subTitle: 'MA'),
-    DropdownItem(id: 'NY', title: 'New York', subTitle: 'NY'),
-    DropdownItem(id: 'CA', title: 'California', subTitle: 'CA'),
-    DropdownItem(id: 'TX', title: 'Texas', subTitle: 'TX'),
-    // Add more states as needed
+    DropdownItem(id: 1, title: 'Massachusetts', subTitle: 'MA'),
+    DropdownItem(id: 2, title: 'New York', subTitle: 'NY'),
+    DropdownItem(id: 3, title: 'California', subTitle: 'CA'),
+    DropdownItem(id: 4, title: 'Texas', subTitle: 'TX'),
+    // Add more states as needed, ensuring unique integer IDs
   ];
 
   @override
@@ -82,10 +82,10 @@ class AddressEntryPage extends StatelessWidget {
                         // Street Field
                         AppTextField(
                           label: "Street Address",
-                          controller: TextEditingController(text: state.fields[AddressEntryCubit.streetKey]?.value ?? ''),
+                          controller: TextEditingController(text: state.fields[AddressEntryCubit.streetKey]?.value?.toString() ?? ''),
                           errorText: state.fields[AddressEntryCubit.streetKey]?.error,
                           onChanged: (v) => cubit.updateField(AddressEntryCubit.streetKey, v),
-                          suffixIcon: cubit.fieldHadInitialValue(AddressEntryCubit.streetKey)
+                          suffixIcon: (state.fields[AddressEntryCubit.streetKey]?.initialValue != null && state.fields[AddressEntryCubit.streetKey]!.initialValue.toString().isNotEmpty)
                               ? const Icon(Icons.edit, size: 20)
                               : null,
                         ),
@@ -94,10 +94,10 @@ class AddressEntryPage extends StatelessWidget {
                         // City Field
                         AppTextField(
                           label: "City",
-                          controller: TextEditingController(text: state.fields[AddressEntryCubit.cityKey]?.value ?? ''),
+                          controller: TextEditingController(text: state.fields[AddressEntryCubit.cityKey]?.value?.toString() ?? ''),
                           errorText: state.fields[AddressEntryCubit.cityKey]?.error,
                           onChanged: (v) => cubit.updateField(AddressEntryCubit.cityKey, v),
-                          suffixIcon: cubit.fieldHadInitialValue(AddressEntryCubit.cityKey)
+                          suffixIcon: (state.fields[AddressEntryCubit.cityKey]?.initialValue != null && state.fields[AddressEntryCubit.cityKey]!.initialValue.toString().isNotEmpty)
                               ? const Icon(Icons.edit, size: 20)
                               : null,
                         ),
@@ -108,25 +108,28 @@ class AddressEntryPage extends StatelessWidget {
                           // Build when stateKey field changes OR when fields are first initialized
                           buildWhen: (prev, curr) => prev.fields[AddressEntryCubit.stateKey] != curr.fields[AddressEntryCubit.stateKey] || prev.fields.isEmpty,
                           builder: (context, state) {
-                            // Find the DropdownItem that matches the current state value (which is an ID string)
-                            final String? currentStateId = state.fields[AddressEntryCubit.stateKey]?.value;
+                            final int? currentStateId = state.fields[AddressEntryCubit.stateKey]?.value as int?;
                             DropdownItem? selectedState;
-                            if (currentStateId != null && currentStateId.isNotEmpty) {
-                                selectedState = _states.firstWhere((item) => item.id == currentStateId, orElse: () => _states.first); // Fallback or handle error
+                            if (currentStateId != null) {
+                                selectedState = _states.firstWhere((item) => item.id == currentStateId, orElse: () {
+                                  // Optional: handle case where ID might not be in _states
+                                  // This could happen if initialData.state (string) couldn't be mapped to an int ID
+                                  // or if the int ID from cubit isn't in AddressEntryPage._states.
+                                  // print("Warning: State ID $currentStateId not found in _states list.");
+                                  return null;
+                                });
                             }
 
                             return DropdownField(
                               label: "State",
-                              value: selectedState,
+                              value: selectedState, // This is a DropdownItem?
                               items: _states,
                               errorText: state.fields[AddressEntryCubit.stateKey]?.error,
                               onChanged: (DropdownItem? item) {
+                                // item?.id is already an int, cubit expects int?
                                 cubit.updateField(AddressEntryCubit.stateKey, item?.id);
                               },
-                              // Suffix icon for dropdown needs to be handled differently if needed,
-                              // DropdownButtonFormField doesn't have a direct suffixIcon like TextField.
-                              // For now, relying on the fieldHadInitialValue for text fields.
-                              // If an edit icon is strictly needed for the dropdown, it might require a custom wrapper.
+                              // Suffix icon logic for DropdownField remains as previously discussed (not directly supported like AppTextField)
                             );
                           },
                         ),
@@ -135,11 +138,11 @@ class AddressEntryPage extends StatelessWidget {
                         // Pincode Field
                         AppTextField(
                           label: "Pincode",
-                          controller: TextEditingController(text: state.fields[AddressEntryCubit.pincodeKey]?.value ?? ''),
+                          controller: TextEditingController(text: state.fields[AddressEntryCubit.pincodeKey]?.value?.toString() ?? ''),
                           keyboardType: TextInputType.number,
                           errorText: state.fields[AddressEntryCubit.pincodeKey]?.error,
                           onChanged: (v) => cubit.updateField(AddressEntryCubit.pincodeKey, v),
-                          suffixIcon: cubit.fieldHadInitialValue(AddressEntryCubit.pincodeKey)
+                          suffixIcon: (state.fields[AddressEntryCubit.pincodeKey]?.initialValue != null && state.fields[AddressEntryCubit.pincodeKey]!.initialValue.toString().isNotEmpty)
                               ? const Icon(Icons.edit, size: 20)
                               : null,
                         ),
@@ -148,10 +151,10 @@ class AddressEntryPage extends StatelessWidget {
                         // Landmark Field (Optional)
                         AppTextField(
                           label: "Landmark (Optional)",
-                           controller: TextEditingController(text: state.fields[AddressEntryCubit.landmarkKey]?.value ?? ''),
+                           controller: TextEditingController(text: state.fields[AddressEntryCubit.landmarkKey]?.value?.toString() ?? ''),
                           errorText: state.fields[AddressEntryCubit.landmarkKey]?.error,
                           onChanged: (v) => cubit.updateField(AddressEntryCubit.landmarkKey, v),
-                           suffixIcon: cubit.fieldHadInitialValue(AddressEntryCubit.landmarkKey)
+                           suffixIcon: (state.fields[AddressEntryCubit.landmarkKey]?.initialValue != null && state.fields[AddressEntryCubit.landmarkKey]!.initialValue.toString().isNotEmpty)
                               ? const Icon(Icons.edit, size: 20)
                               : null,
                         ),

@@ -1,62 +1,66 @@
 import 'package:custom_form/core/cubits/base_form/cubit/base_form_cubit.dart';
 import 'package:custom_form/core/cubits/base_form/cubit/base_form_state.dart';
 import 'package:custom_form/core/data/address_dm.dart';
-import 'package:custom_form/core/data/drop_down_dm.dart'; // For DropdownItem if needed for state value
+// No longer need DropdownItem here directly for state value, as we store int ID.
 
 class AddressEntryCubit extends BaseFormCubit {
   static const String streetKey = 'street';
   static const String cityKey = 'city';
   static const String landmarkKey = 'landmark';
   static const String pincodeKey = 'pincode';
-  static const String stateKey = 'state';
+  static const String stateKey = 'state'; // This will now store int?
 
   final AddressData? initialData;
 
-  AddressEntryCubit({this.initialData}) {
+  // Mapping from string state codes (like in AddressData) to integer IDs (for DropdownItems)
+  static const Map<String, int> _stateCodeToIdMap = {
+    'MA': 1,
+    'NY': 2,
+    'CA': 3,
+    'TX': 4,
+    // Add other states from AddressEntryPage._states if necessary
+    // Ensure this map is consistent with AddressEntryPage._states
+  };
+
+  // Optional: Reverse map if needed for submission (int ID to String code)
+  // static final Map<int, String> _idToStateCodeMap =
+  //   Map.fromEntries(_stateCodeToIdMap.entries.map((e) => MapEntry(e.value, e.key)));
+
+
+  AddressEntryCubit({this.initialData}) : super() { // Call no-arg constructor of BaseFormCubit
     _initializeFields();
   }
 
   void _initializeFields() {
-    // Initial values map
-    final Map<String, dynamic> initialValues = {
-      streetKey: initialData?.address ?? '',
-      cityKey: initialData?.city ?? '',
-      landmarkKey: initialData?.landmark ?? '',
-      pincodeKey: initialData?.zipCode ?? '',
-      // For the state dropdown, we'll store the DropdownItem's ID (e.g., "MA")
-      // The UI will need to map this ID back to a DropdownItem object.
-      stateKey: initialData?.state,
+    int? initialSelectedStateId;
+    if (initialData?.state != null && initialData!.state.isNotEmpty) {
+      initialSelectedStateId = _stateCodeToIdMap[initialData!.state.toUpperCase()];
+    }
+
+    // Prepare a map of BaseFormFieldState for initializeFormFields
+    final Map<String, BaseFormFieldState> initialFieldsMap = {
+      streetKey: BaseFormFieldState(value: initialData?.address ?? '', initialValue: initialData?.address ?? ''),
+      cityKey: BaseFormFieldState(value: initialData?.city ?? '', initialValue: initialData?.city ?? ''),
+      landmarkKey: BaseFormFieldState(value: initialData?.landmark ?? '', initialValue: initialData?.landmark ?? ''),
+      pincodeKey: BaseFormFieldState(value: initialData?.zipCode ?? '', initialValue: initialData?.zipCode ?? ''),
+      stateKey: BaseFormFieldState(value: initialSelectedStateId, initialValue: initialSelectedStateId), // Store int?
     };
 
-    // Initialize fields using BaseFormCubit's method
-    // Pass both value and initialValue at the point of first initialization.
-    initializeFormFields(Map.fromEntries(initialValues.entries.map(
-      (entry) => MapEntry(entry.key, BaseFormFieldState(value: entry.value, initialValue: entry.value)),
-    )));
+    initializeFormFields(initialFieldsMap);
 
-    // If initialData is present, call setFieldInitialValue to ensure initialValue is formally set
-    // and value is updated if it was null. This might seem redundant if initializeFormFields
-    // already sets initialValue, but setFieldInitialValue has specific logic for this.
-    // Alternatively, the logic in setFieldInitialValue could be merged into initializeFormFields
-    // or this block could be refined if BaseFormFieldState is always constructed with initialValue above.
-    // For now, keeping it ensures the initial values are processed as intended by setFieldInitialValue.
-    if (initialData != null) {
-        // Note: initialValues map already incorporates initialData.
-        // The setFieldInitialValue calls below will re-apply these, ensuring the
-        // 'initialValue' property within BaseFormFieldState is correctly set,
-        // and also aligning current field 'value' if it was null.
-        setFieldInitialValue(streetKey, initialValues[streetKey]);
-        setFieldInitialValue(cityKey, initialValues[cityKey]);
-        setFieldInitialValue(landmarkKey, initialValues[landmarkKey]);
-        setFieldInitialValue(pincodeKey, initialValues[pincodeKey]);
-        setFieldInitialValue(stateKey, initialValues[stateKey]);
-    }
+    // The setFieldInitialValue calls from the previous version are now handled by
+    // setting initialValue directly in BaseFormFieldState instances above.
+    // BaseFormCubit's initializeFormFields sets these up.
+    // If specific logic from setFieldInitialValue (like ensuring value is also set if null)
+    // is still needed beyond what initializeFormFields does, it would need to be re-evaluated.
+    // However, BaseFormFieldState now takes initialValue, and BaseFormCubit's setFieldInitialValue
+    // was primarily for cases where initialValue was not part of BaseFormFieldState.
   }
 
-  // Renamed from getValidations and signature changed to match FieldValidator typedef
-  Map<String, FieldValidator> _getValidatorsMap() {
+  @override
+  Map<String, FieldValidator> get validators {
     return {
-      streetKey: (value, _) => // allValues ('_') is not used here but is part of the signature
+      streetKey: (value, _) =>
           value == null || value.toString().isEmpty ? 'Street cannot be empty' : null,
       cityKey: (value, _) =>
           value == null || value.toString().isEmpty ? 'City cannot be empty' : null,
@@ -70,58 +74,49 @@ class AddressEntryCubit extends BaseFormCubit {
         // }
         return null;
       },
-      stateKey: (value, _) =>
-          value == null || value.toString().isEmpty ? 'State must be selected' : null,
+      stateKey: (value, _) => // value here is now int?
+          value == null ? 'State must be selected' : null, // Check for null for int?
       landmarkKey: (value, _) => null, // Optional field
     };
   }
 
-  @override
-  Map<String, FieldValidator> get validators => _getValidatorsMap();
-
-  // Helper to indicate if a field had an initial value from AddressData
-  // This can be used by the UI to decide whether to show an edit icon.
-  // It should now check the initialValue property of the field in the state.
-  bool fieldHadInitialValue(String key) {
-    // Check against the 'initialValue' stored in the field's state
-    final field = state.fields[key];
-    return field?.initialValue != null && field!.initialValue.toString().isNotEmpty;
-  }
-
-  // _getInitialValueForKey is no longer strictly needed if fieldHadInitialValue checks state.
-  // However, it can be kept if direct access to initialData sources is preferred for some logic.
-  // For consistency, relying on state.fields[key].initialValue is better.
-  // String? _getInitialValueForKey(String key) {
-  //   switch (key) {
-  //     case streetKey:
-  //       return initialData?.address;
-  //     // ... other cases
-  //     default:
-  //       return null;
-  //   }
-  // }
+  // fieldHadInitialValue and _getInitialValueForKey methods are removed.
+  // UI/tests can rely on cubit.state.fields[key]?.initialValue directly.
 
   @override
   Future<void> submitForm(Map<String, dynamic> values) async {
-    // This method is called by BaseFormCubit after validation
-    // 'values' contains the current form values
-    emit(state.copyWith(isSubmitting: true)); // Already handled by BaseFormCubit's submit
+    // Accessing stateKey from 'values' map will give int?
+    // final int? selectedStateId = values[stateKey] as int?;
+
+    // If AddressData.state needs to be a string for submission to an API,
+    // you would map the integer ID back to its string code here.
+    // Example:
+    // final String? stateCodeForApi;
+    // if (selectedStateId != null) {
+    //   // Create or use a reverse map: _idToStateCodeMap
+    //   // stateCodeForApi = _idToStateCodeMap[selectedStateId];
+    // } else {
+    //   stateCodeForApi = null;
+    // }
+    // print('Submitting form with Street: ${values[streetKey]}, State ID: $selectedStateId, Mapped State Code: $stateCodeForApi');
 
     // Simulate API call
+    // BaseFormCubit's submit() method already sets isSubmitting to true and clears previous errors.
     await Future.delayed(const Duration(seconds: 1));
 
-    // Example: Accessing validated values
-    // final String street = values[streetKey];
-    // final String city = values[cityKey];
-    // print('Submitting data: $values');
-
-    // Based on API response:
-    // emit(state.copyWith(isSubmitting: false, isSuccess: true));
-    // or
-    // emit(state.copyWith(isSubmitting: false, isFailure: true, apiError: 'Failed to save address'));
-
     // For now, just print and simulate success
-    print('AddressEntryCubit.submitForm called with: $values');
+    print('AddressEntryCubit.submitForm called with (values map from BaseFormCubit): $values');
+    // Example: how the original data might be structured if needed for API
+    // AddressData dataToSubmit = AddressData(
+    //   id: initialData?.id ?? '', // or generate new ID
+    //   address: values[streetKey] as String,
+    //   city: values[cityKey] as String,
+    //   zipCode: values[pincodeKey] as String,
+    //   state: stateCodeForApi ?? '', // Use the mapped string state code
+    //   landmark: values[landmarkKey] as String?,
+    // );
+    // print('Data to submit to API: ${dataToSubmit}');
+
     emit(state.copyWith(isSubmitting: false, isSuccess: true, apiError: null));
   }
 }
