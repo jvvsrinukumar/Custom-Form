@@ -1,5 +1,6 @@
 import 'package:custom_form/core/cubits/base_form/cubit/base_form_state.dart';
 import 'package:custom_form/ui/login/cubit/login_cubit.dart';
+import 'package:custom_form/ui/register/register_page.dart';
 import 'package:custom_form/widgets/app_check_box.dart';
 import 'package:custom_form/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
@@ -124,6 +125,16 @@ class LoginPage extends StatelessWidget {
                                       : null,
                               child: const Text('Login'),
                             ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        child: const Text("Don't have an account? Register"),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const RegisterPage()),
                           );
                         },
                       ),
