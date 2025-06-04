@@ -1,83 +1,58 @@
-import 'package:bloc/bloc.dart';
-import 'package:custom_form/core/cubits/base_form/cubit/base_form_state.dart';
+import 'package:custom_form/core/cubits/base_form/cubit/base_form_cubit.dart';
 
-typedef FieldValidator = String? Function(dynamic value);
+// typedef FieldValidator = String? Function(dynamic value);
 
-class LoginCubit extends Cubit<BaseFormState> {
+class LoginCubit extends BaseFormCubit {
   static const String emailKey = 'email';
   static const String passwordKey = 'password';
   static const String checkoutKey = 'checkout';
 
   LoginCubit()
-      : super(BaseFormState(fields: {
-          emailKey: BaseFormFieldState(value: ''),
-          passwordKey: BaseFormFieldState(value: ''),
-          checkoutKey: BaseFormFieldState(value: false),
-        }));
+      : super(
+          {
+            emailKey: '',
+            passwordKey: '',
+            checkoutKey: false,
+          },
+          validators: {
+            emailKey: (value, _) {
+              if (value == null || value.isEmpty) return "Email required";
+              final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+              if (!emailRegex.hasMatch(value)) return "Enter valid email";
+              return null;
+            },
+            passwordKey: (value, _) {
+              if (value == null || value.isEmpty) return "Password required";
+              if (value.length < 6) return "Min 6 characters";
+              return null;
+            },
+            checkoutKey: (value, _) {
+              if (value != true) return "Must accept terms";
+              return null;
+            },
+          },
+        );
 
-  final Map<String, FieldValidator> validators = {
-    emailKey: (value) {
-      if (value == null || value.isEmpty) return "Email required";
-      final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-      if (!emailRegex.hasMatch(value)) return "Enter valid email";
-      return null;
-    },
-    passwordKey: (value) {
-      if (value == null || value.isEmpty) return "Password required";
-      if (value.length < 6) return "Min 6 characters";
-      return null;
-    },
-    checkoutKey: (value) {
-      if (value != true) return "Must accept checkout";
-      return null;
-    }
-  };
-
-  void updateField(String name, dynamic value) {
-    final validator = validators[name];
-    final error = validator?.call(value);
-    final isValid = error == null;
-
-    final updatedField = state.fields[name]!.copyWith(
-      value: value,
-      error: error,
-      isValid: isValid,
-    );
-
-    emit(state.copyWith(
-      fields: {...state.fields, name: updatedField},
-      isSuccess: false,
-      isFailure: false,
-    ));
-  }
-
-  Future<void> submit() async {
-    // Validate all fields
-    final updatedFields = <String, BaseFormFieldState>{};
-    bool hasError = false;
-
-    state.fields.forEach((key, field) {
-      final validator = validators[key];
-      final error = validator?.call(field.value);
-      final isValid = error == null;
-      if (!isValid) hasError = true;
-      updatedFields[key] = field.copyWith(error: error, isValid: isValid);
-    });
-
-    if (hasError) {
-      emit(state.copyWith(fields: updatedFields, isFailure: true));
-      return;
-    }
-
-    emit(state.copyWith(isSubmitting: true));
-
+  @override
+  Future<void> submitForm(Map<String, dynamic> values) async {
     try {
       // Simulate API call
       await Future.delayed(Duration(seconds: 2));
-      // Here you would actually call your login API.
+      // Access form values
+      final email = values[emailKey];
+      final password = values[passwordKey];
+      final checkout = values[checkoutKey];
+
+      // Here you would call your API with these values.
+      print("Logging in with $email / $password / $checkout");
+
       emit(state.copyWith(isSubmitting: false, isSuccess: true));
-    } catch (_) {
-      emit(state.copyWith(isSubmitting: false, isFailure: true));
+    } catch (e) {
+      emit(state.copyWith(
+        isSubmitting: false,
+        isFailure: true,
+        apiError: "Login failed. Try again.",
+      ));
     }
   }
 }

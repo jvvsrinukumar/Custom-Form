@@ -7,6 +7,7 @@ class AppTextField extends StatelessWidget {
   final TextInputType keyboardType;
   final Function(String)? onChanged;
   final TextEditingController? controller;
+  final Widget? suffixIcon; // Added this line
 
   const AppTextField({
     super.key,
@@ -16,6 +17,7 @@ class AppTextField extends StatelessWidget {
     this.keyboardType = TextInputType.text,
     this.onChanged,
     this.controller,
+    this.suffixIcon, // Added this line
   });
 
   @override
@@ -31,6 +33,7 @@ class AppTextField extends StatelessWidget {
         border: OutlineInputBorder(),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        suffixIcon: suffixIcon, // Added this line
       ),
     );
   }
