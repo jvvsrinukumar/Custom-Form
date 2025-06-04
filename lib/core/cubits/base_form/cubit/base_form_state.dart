@@ -4,20 +4,32 @@ class BaseFormFieldState extends Equatable {
   final dynamic value;
   final String? error;
   final bool isValid;
+  final dynamic initialValue; // New field
 
-  const BaseFormFieldState(
-      {required this.value, this.error, this.isValid = true});
+  const BaseFormFieldState({
+    required this.value,
+    this.error,
+    this.isValid = true,
+    this.initialValue, // Added to constructor
+  });
 
-  BaseFormFieldState copyWith({dynamic value, String? error, bool? isValid}) {
+  BaseFormFieldState copyWith({
+    dynamic value,
+    String? error,
+    bool? isValid,
+    dynamic initialValue, // Added to copyWith
+    bool clearError = false, // Added for explicit error clearing
+  }) {
     return BaseFormFieldState(
       value: value ?? this.value,
-      error: error,
+      error: clearError ? null : error ?? this.error,
       isValid: isValid ?? this.isValid,
+      initialValue: initialValue ?? this.initialValue,
     );
   }
 
   @override
-  List<Object?> get props => [value, error, isValid];
+  List<Object?> get props => [value, error, isValid, initialValue];
 }
 
 class BaseFormState extends Equatable {

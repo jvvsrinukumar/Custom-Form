@@ -1,6 +1,8 @@
 import 'package:custom_form/ui/login/login_page.dart';
-import 'package:custom_form/ui/register/register_page.dart';
+// import 'package:custom_form/ui/register/register_page.dart'; // Keep if needed, or remove if not used by new flow
 import 'package:flutter/material.dart';
+import 'package:custom_form/ui/address_entry/address_entry_page.dart';
+import 'package:custom_form/core/data/address_dm.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,31 +15,87 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Flutter Custom Form Demo', // Updated title
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
+        // Using existing theme, but primary swatch can be defined if needed
+        // primarySwatch: Colors.blue, // Example if not using fromSeed
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
+        visualDensity: VisualDensity.adaptivePlatformDensity, // Added
       ),
-      home: const LoginPage(),
+      // home: const LoginPage(), // Original home
+      home: const MyHomePageForTesting(), // New temporary home page for testing
     );
   }
 }
 
+// New temporary home page to host navigation buttons
+class MyHomePageForTesting extends StatelessWidget {
+  const MyHomePageForTesting({super.key});
+
+  // Sample AddressData for testing editing
+  final AddressData sampleAddress = const AddressData(
+    id: "12jdjkdjk",
+    address: "123 MAIN STREET",
+    city: "MASSACHUSETTS",
+    zipCode: "02116",
+    state: "MA",
+    landmark: "Near Central Park"
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Form Demo Home'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            ElevatedButton(
+              child: const Text('Add New Address'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddressEntryPage(),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              child: const Text('Edit Existing Address'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddressEntryPage(initialAddressData: sampleAddress),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 40),
+             ElevatedButton(
+              child: const Text('Go to Login Page'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+// The original MyHomePage (counter app) is kept below, though it's not currently set as 'home'.
+// It can be removed if no longer needed.
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
 
