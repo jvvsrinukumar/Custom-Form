@@ -1,6 +1,6 @@
 import 'package:custom_form/core/cubits/base_form/cubit/base_form_state.dart';
 import 'package:custom_form/core/data/address_dm.dart';
-import 'package:custom_form/core/data/drop_down_dm.dart';
+import 'package:custom_form/core/data/drop_down_dm.dart'; // Still needed for DropdownItem type
 import 'package:custom_form/ui/address_entry/cubit/address_entry_cubit.dart';
 import 'package:custom_form/widgets/app_drop_down.dart';
 import 'package:custom_form/widgets/app_text_field.dart';
@@ -12,14 +12,13 @@ class AddressEntryPage extends StatelessWidget {
 
   const AddressEntryPage({super.key, this.initialAddressData});
 
-  // Define the list of states for the dropdown
-  static const List<DropdownItem> _states = [
-    DropdownItem(id: 1, title: 'Massachusetts', subTitle: 'MA'),
-    DropdownItem(id: 2, title: 'New York', subTitle: 'NY'),
-    DropdownItem(id: 3, title: 'California', subTitle: 'CA'),
-    DropdownItem(id: 4, title: 'Texas', subTitle: 'TX'),
-    // Add more states as needed, ensuring unique integer IDs
-  ];
+  // REMOVE this static list:
+  // static const List<DropdownItem> _states = [
+  //   DropdownItem(id: 1, title: 'Massachusetts', subTitle: 'MA'),
+  //   DropdownItem(id: 2, title: 'New York', subTitle: 'NY'),
+  //   DropdownItem(id: 3, title: 'California', subTitle: 'CA'),
+  //   DropdownItem(id: 4, title: 'Texas', subTitle: 'TX'),
+  // ];
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +27,7 @@ class AddressEntryPage extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: BlocBuilder<AddressEntryCubit, BaseFormState>(
-            buildWhen: (previous, current) => previous.fields.isEmpty && current.fields.isNotEmpty, // Build only once when fields are initialized
+            buildWhen: (previous, current) => previous.fields.isEmpty && current.fields.isNotEmpty,
             builder: (context, state) {
               final cubit = context.read<AddressEntryCubit>();
               return Text(cubit.initialData != null ? 'Edit Address' : 'Add Address');
@@ -65,9 +64,14 @@ class AddressEntryPage extends StatelessWidget {
           },
           builder: (context, state) {
             final cubit = context.read<AddressEntryCubit>();
+            // Get items from cubit. This needs to be accessed within a context where cubit is available.
+            // If stateItemsFromCubit is needed by the BlocBuilder for the dropdown, it should be accessed there,
+            // or if it's static/final from the cubit type, it can be AddressEntryCubit._stateItems (if visible)
+            // or cubit.stateDropdownItems if it's an instance getter.
+            // The provided plan suggests `cubit.stateDropdownItems` which is an instance getter.
+            final List<DropdownItem> stateItemsFromCubit = cubit.stateDropdownItems;
 
             if (state.fields.isEmpty) {
-              // Cubit is initializing, show a loader or empty container
               return const Center(child: CircularProgressIndicator());
             }
 
@@ -79,7 +83,6 @@ class AddressEntryPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Street Field
                         AppTextField(
                           label: "Street Address",
                           controller: TextEditingController(text: state.fields[AddressEntryCubit.streetKey]?.value?.toString() ?? ''),
@@ -90,8 +93,6 @@ class AddressEntryPage extends StatelessWidget {
                               : null,
                         ),
                         const SizedBox(height: 16),
-
-                        // City Field
                         AppTextField(
                           label: "City",
                           controller: TextEditingController(text: state.fields[AddressEntryCubit.cityKey]?.value?.toString() ?? ''),
@@ -105,37 +106,38 @@ class AddressEntryPage extends StatelessWidget {
 
                         // State Dropdown
                         BlocBuilder<AddressEntryCubit, BaseFormState>(
-                          // Build when stateKey field changes OR when fields are first initialized
                           buildWhen: (prev, curr) => prev.fields[AddressEntryCubit.stateKey] != curr.fields[AddressEntryCubit.stateKey] || prev.fields.isEmpty,
                           builder: (context, state) {
+                            // Access cubit again here if needed, or use the one from the outer builder.
+                            // For stateItemsFromCubit, it's better to use the one from the outer builder to avoid repeated calls if it were a method.
+                            // Since it's a getter, it's fine either way, but for consistency:
+                            // final List<DropdownItem> items = context.read<AddressEntryCubit>().stateDropdownItems;
+
                             final int? currentStateId = state.fields[AddressEntryCubit.stateKey]?.value as int?;
                             DropdownItem? selectedState;
+
                             if (currentStateId != null) {
-                                selectedState = _states.firstWhere((item) => item.id == currentStateId, orElse: () {
-                                  // Optional: handle case where ID might not be in _states
-                                  // This could happen if initialData.state (string) couldn't be mapped to an int ID
-                                  // or if the int ID from cubit isn't in AddressEntryPage._states.
-                                  // print("Warning: State ID $currentStateId not found in _states list.");
-                                  return null;
-                                });
+                              for (final item in stateItemsFromCubit) { // Use items from cubit (captured from outer scope)
+                                if (item.id == currentStateId) {
+                                  selectedState = item;
+                                  break;
+                                }
+                              }
                             }
 
                             return DropdownField(
                               label: "State",
-                              value: selectedState, // This is a DropdownItem?
-                              items: _states,
+                              value: selectedState,
+                              items: stateItemsFromCubit, // Use items from cubit
                               errorText: state.fields[AddressEntryCubit.stateKey]?.error,
                               onChanged: (DropdownItem? item) {
-                                // item?.id is already an int, cubit expects int?
                                 cubit.updateField(AddressEntryCubit.stateKey, item?.id);
                               },
-                              // Suffix icon logic for DropdownField remains as previously discussed (not directly supported like AppTextField)
                             );
                           },
                         ),
                         const SizedBox(height: 16),
 
-                        // Pincode Field
                         AppTextField(
                           label: "Pincode",
                           controller: TextEditingController(text: state.fields[AddressEntryCubit.pincodeKey]?.value?.toString() ?? ''),
@@ -147,8 +149,6 @@ class AddressEntryPage extends StatelessWidget {
                               : null,
                         ),
                         const SizedBox(height: 16),
-
-                        // Landmark Field (Optional)
                         AppTextField(
                           label: "Landmark (Optional)",
                            controller: TextEditingController(text: state.fields[AddressEntryCubit.landmarkKey]?.value?.toString() ?? ''),
@@ -160,10 +160,9 @@ class AddressEntryPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 32),
 
-                        // Submit Button
                         ElevatedButton(
                           onPressed: state.isFormValid && !state.isSubmitting
-                              ? () => cubit.submitForm(const {}) // Pass empty map or actual values if needed by submitForm
+                              ? () => cubit.submitForm(const {})
                               : null,
                           child: Text(cubit.initialData != null ? 'Update' : 'Save'),
                         ),
