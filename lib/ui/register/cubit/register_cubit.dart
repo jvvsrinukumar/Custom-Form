@@ -47,7 +47,7 @@ class RegisterCubit extends BaseFormCubit {
       lastNameKey: const BaseFormFieldState(value: '', initialValue: ''),
       usernameKey: const BaseFormFieldState(value: '', initialValue: ''), // Initialize usernameKey
       termsKey: const BaseFormFieldState(value: false, initialValue: false),
-      categoryKey: const BaseFormFieldState<DropdownItem?>(value: null, initialValue: null), // For Dropdown
+      categoryKey: const BaseFormFieldState(value: null, initialValue: null), // Corrected: Removed type argument
       obscurePasswordKey: const BaseFormFieldState(value: true, initialValue: true),
       obscureConfirmPasswordKey: const BaseFormFieldState(value: true, initialValue: true),
     });
