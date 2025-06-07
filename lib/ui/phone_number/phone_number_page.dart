@@ -154,9 +154,21 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
 
                             // Next Button (BlocBuilder) - existing code
                             BlocBuilder<PhoneNumberCubit, BaseFormState>(
-                              buildWhen: (prev, curr) =>
-                                  prev.isFormValid != curr.isFormValid ||
-                                  prev.isSubmitting != curr.isSubmitting,
+                              buildWhen: (prev, curr) {
+                                // If isSubmitting changes, always rebuild for the button's enabled state.
+                                if (prev.isSubmitting != curr.isSubmitting) {
+                                  return true;
+                                }
+                                // If the phone number field's state object has changed, rebuild.
+                                // BaseFormFieldState uses Equatable, so a new instance (due to copyWith
+                                // on value, error, or isValid change) will make prevPhoneField != currPhoneField.
+                                final prevPhoneField = prev.fields[PhoneNumberCubit.phoneNumberKey];
+                                final currPhoneField = curr.fields[PhoneNumberCubit.phoneNumberKey];
+                                if (prevPhoneField != currPhoneField) {
+                                  return true;
+                                }
+                                return false;
+                              },
                               builder: (context, buttonState) {
                                 return SizedBox(
                                   width: double.infinity,
