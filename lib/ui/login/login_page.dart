@@ -62,6 +62,7 @@ class LoginPage extends StatelessWidget {
                           return AppTextField(
                             label: "Email",
                             keyboardType: TextInputType.emailAddress,
+                            value: state.fields[LoginCubit.emailKey]?.value,
                             errorText: state.fields[LoginCubit.emailKey]?.error,
                             onChanged: (v) =>
                                 cubit.updateField(LoginCubit.emailKey, v),
@@ -79,6 +80,7 @@ class LoginPage extends StatelessWidget {
                           return AppTextField(
                             label: "Password",
                             obscureText: true,
+                            value: state.fields[LoginCubit.passwordKey]?.value,
                             errorText:
                                 state.fields[LoginCubit.passwordKey]?.error,
                             onChanged: (v) =>

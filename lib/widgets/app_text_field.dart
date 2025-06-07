@@ -36,22 +36,6 @@ class _AppTextFieldState extends State<AppTextField> {
   }
 
   @override
-  void didUpdateWidget(AppTextField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // If the value passed to the widget changes externally (e.g., from cubit state),
-    // and it's different from the controller's current text, update the controller.
-    // This ensures the field reflects programmatic changes.
-    final newValue = widget.value ?? '';
-    if (newValue != _controller.text) {
-      _controller.text = newValue;
-      // Move cursor to the end after programmatic change
-      _controller.selection = TextSelection.fromPosition(
-        TextPosition(offset: _controller.text.length),
-      );
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     // The TextField now always uses the internal _controller.
     // Its onChanged callback will propagate to widget.onChanged.

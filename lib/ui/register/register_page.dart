@@ -66,6 +66,7 @@ class RegisterPage extends StatelessWidget {
                               builder: (context, fieldState) {
                                 return AppTextField(
                                   label: "First Name",
+                                  value: fieldState.fields[RegisterCubit.firstNameKey]?.value,
                                   errorText: fieldState
                                       .fields[RegisterCubit.firstNameKey]
                                       ?.error,
@@ -84,6 +85,7 @@ class RegisterPage extends StatelessWidget {
                               builder: (context, fieldState) {
                                 return AppTextField(
                                   label: "Last Name",
+                                  value: fieldState.fields[RegisterCubit.lastNameKey]?.value,
                                   errorText: fieldState
                                       .fields[RegisterCubit.lastNameKey]?.error,
                                   onChanged: (value) => cubit.updateField(
@@ -101,6 +103,7 @@ class RegisterPage extends StatelessWidget {
                               builder: (context, fieldState) {
                                 return AppTextField(
                                   label: "Username (Optional)",
+                                  value: fieldState.fields[RegisterCubit.usernameKey]?.value,
                                   onChanged: (value) => cubit.updateField(
                                       RegisterCubit.usernameKey, value),
                                 );
@@ -141,6 +144,7 @@ class RegisterPage extends StatelessWidget {
                                 return AppTextField(
                                   label: "Email",
                                   keyboardType: TextInputType.emailAddress,
+                                  value: fieldState.fields[RegisterCubit.emailKey]?.value,
                                   errorText: fieldState
                                       .fields[RegisterCubit.emailKey]?.error,
                                   onChanged: (value) => cubit.updateField(
@@ -164,6 +168,7 @@ class RegisterPage extends StatelessWidget {
                                 return AppTextField(
                                   label: "Password",
                                   obscureText: obscurePass,
+                                  value: fieldState.fields[RegisterCubit.passwordKey]?.value,
                                   errorText: fieldState
                                       .fields[RegisterCubit.passwordKey]?.error,
                                   onChanged: (value) => cubit.updateField(
@@ -188,7 +193,7 @@ class RegisterPage extends StatelessWidget {
                                   prev.fields[
                                       RegisterCubit.confirmPasswordKey] !=
                                   curr.fields[RegisterCubit.confirmPasswordKey],
-                              builder: (context, fieldState) {
+                              builder: (context, state) { // Corrected: Uses 'state' as per subtask for this field
                                 final obscureConfirmPass = state
                                         .fields[RegisterCubit
                                             .obscureConfirmPasswordKey]
@@ -197,6 +202,7 @@ class RegisterPage extends StatelessWidget {
                                 return AppTextField(
                                   label: "Confirm Password",
                                   obscureText: obscureConfirmPass,
+                                  value: state.fields[RegisterCubit.confirmPasswordKey]?.value, // Corrected: Uses 'state'
                                   errorText: state
                                       .fields[RegisterCubit.confirmPasswordKey]
                                       ?.error,
