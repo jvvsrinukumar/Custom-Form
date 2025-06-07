@@ -32,8 +32,28 @@ class PhoneNumberCubit extends BaseFormCubit {
     print("Submitting phone number: \${values[phoneNumberKey]}");
     await Future.delayed(const Duration(seconds: 1));
 
-    // Example of success
-    emit(state.copyWith(isSubmitting: false, isSuccess: true));
+    // Get the current state of the phone number field, or create a default if somehow missing
+    final currentPhoneNumberFieldState = state.fields[phoneNumberKey] ?? const BaseFormFieldState(value: ''); // Added default value for BaseFormFieldState
+
+    // Ensure the value from the 'values' map (which was validated) is used.
+    // Also, explicitly mark it as valid and clear any prior error from the submission validation pass,
+    // as this is a successful submission.
+    final successPhoneNumberFieldState = currentPhoneNumberFieldState.copyWith(
+      value: values[phoneNumberKey], // Use the submitted value
+      error: null, // Clear any error
+      isValid: true, // Mark as valid because submission was successful
+      clearError: true, // Explicitly clear error
+    );
+
+    // Create an updated fields map
+    final updatedFields = Map<String, BaseFormFieldState>.from(state.fields);
+    updatedFields[phoneNumberKey] = successPhoneNumberFieldState;
+
+    emit(state.copyWith(
+      fields: updatedFields, // Pass the explicitly updated fields
+      isSubmitting: false,
+      isSuccess: true,
+    ));
 
     // Example of failure:
     // emit(state.copyWith(isSubmitting: false, isFailure: true, apiError: "Failed to submit phone number."));
