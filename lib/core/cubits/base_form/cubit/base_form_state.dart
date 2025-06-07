@@ -50,7 +50,7 @@ class BaseFormState extends Equatable {
     this.isKeypadVisible = true, // Default to true
   });
 
-  bool get isFormValid => fields.values.every((f) => f.isValid);
+  bool get isFormValid => fields.isNotEmpty && fields.values.every((field) => field.isValid);
 
   BaseFormState copyWith({
     Map<String, BaseFormFieldState>? fields,
