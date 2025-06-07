@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 class CustomNumericKeypad extends StatelessWidget {
   final TextEditingController controller;
   final int? maxLength;
+  final void Function(String)? onChanged; // <-- Add this
 
   const CustomNumericKeypad({
     super.key,
     required this.controller,
     this.maxLength,
+    this.onChanged,
   });
 
   void _handleDigitPress(String digit) {
@@ -18,6 +20,7 @@ class CustomNumericKeypad extends StatelessWidget {
       controller.selection = TextSelection.fromPosition(
         TextPosition(offset: controller.text.length),
       );
+      onChanged?.call(controller.text);
     }
   }
 
@@ -29,34 +32,33 @@ class CustomNumericKeypad extends StatelessWidget {
       controller.selection = TextSelection.fromPosition(
         TextPosition(offset: controller.text.length),
       );
+      onChanged?.call(controller.text);
     }
   }
 
   Widget _buildButton(String text, {bool isBackspace = false}) {
     return Expanded(
-      child: AspectRatio(
-        aspectRatio: 2 / 1.2, // Adjust aspect ratio for button size
-        child: TextButton(
-          style: TextButton.styleFrom(
-            backgroundColor: Colors.grey[200],
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+      child: TextButton(
+        style: TextButton.styleFrom(
+          backgroundColor: Colors.grey[200],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
-          onPressed: () {
-            if (isBackspace) {
-              _handleBackspacePress();
-            } else {
-              _handleDigitPress(text);
-            }
-          },
-          child: isBackspace
-              ? const Icon(Icons.backspace_outlined, color: Colors.black, size: 28)
-              : Text(
-                  text,
-                  style: const TextStyle(fontSize: 28, color: Colors.black),
-                ),
         ),
+        onPressed: () {
+          if (isBackspace) {
+            _handleBackspacePress();
+          } else {
+            _handleDigitPress(text);
+          }
+        },
+        child: isBackspace
+            ? const Icon(Icons.backspace_outlined,
+                color: Colors.black, size: 28)
+            : Text(
+                text,
+                style: const TextStyle(fontSize: 28, color: Colors.black),
+              ),
       ),
     );
   }

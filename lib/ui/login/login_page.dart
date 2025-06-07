@@ -1,5 +1,7 @@
 import 'package:custom_form/core/cubits/base_form/cubit/base_form_state.dart';
 import 'package:custom_form/ui/login/cubit/login_cubit.dart';
+import 'package:custom_form/ui/phone_number/cubit/phone_number_cubit.dart';
+import 'package:custom_form/ui/phone_number/phone_number_page.dart';
 import 'package:custom_form/ui/register/register_page.dart';
 import 'package:custom_form/widgets/app_check_box.dart';
 import 'package:custom_form/widgets/app_text_field.dart';
@@ -135,7 +137,10 @@ class LoginPage extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) => const RegisterPage()),
+                                builder: (context) => BlocProvider(
+                                      create: (context) => PhoneNumberCubit(),
+                                      child: const PhoneNumberPage(),
+                                    )),
                           );
                         },
                       ),

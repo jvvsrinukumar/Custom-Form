@@ -4,21 +4,21 @@ class BaseFormFieldState extends Equatable {
   final dynamic value;
   final String? error;
   final bool isValid;
-  final dynamic initialValue; // New field
+  final dynamic initialValue;
 
   const BaseFormFieldState({
     required this.value,
     this.error,
-    this.isValid = true,
-    this.initialValue, // Added to constructor
+    this.isValid = false,
+    this.initialValue,
   });
 
   BaseFormFieldState copyWith({
     dynamic value,
     String? error,
     bool? isValid,
-    dynamic initialValue, // Added to copyWith
-    bool clearError = false, // Added for explicit error clearing
+    dynamic initialValue,
+    bool clearError = false,
   }) {
     return BaseFormFieldState(
       value: value ?? this.value,
@@ -32,14 +32,14 @@ class BaseFormFieldState extends Equatable {
   List<Object?> get props => [value, error, isValid, initialValue];
 }
 
+// --------- HERE IS THE KEY CHANGE ----------
 class BaseFormState extends Equatable {
   final Map<String, BaseFormFieldState> fields;
   final bool isSubmitting;
   final bool isSuccess;
   final bool isFailure;
   final String? apiError;
-  final bool isKeypadVisible; // Add this
-  // Note: isFormValid is a getter, so it's not included as a field
+  final bool isKeypadVisible; // <--- ADDED THIS FIELD
 
   const BaseFormState({
     required this.fields,
@@ -47,10 +47,11 @@ class BaseFormState extends Equatable {
     this.isSuccess = false,
     this.isFailure = false,
     this.apiError,
-    this.isKeypadVisible = true, // Default to true
+    this.isKeypadVisible = true, // <--- DEFAULT VALUE
   });
 
-  bool get isFormValid => fields.isNotEmpty && fields.values.every((field) => field.isValid);
+  bool get isFormValid =>
+      fields.isNotEmpty && fields.values.every((field) => field.isValid);
 
   BaseFormState copyWith({
     Map<String, BaseFormFieldState>? fields,
@@ -58,16 +59,17 @@ class BaseFormState extends Equatable {
     bool? isSuccess,
     bool? isFailure,
     String? apiError,
-    bool? clearApiError, // Keep existing clearApiError functionality if needed elsewhere, though not in original snippet. For safety, I'll base it on the user's original intent.
-    bool? isKeypadVisible, // Add this
+    bool? clearApiError,
+    bool? isKeypadVisible, // <--- ADDED THIS
   }) {
     return BaseFormState(
       fields: fields ?? this.fields,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       isSuccess: isSuccess ?? this.isSuccess,
       isFailure: isFailure ?? this.isFailure,
-      apiError: clearApiError == true ? null : apiError ?? this.apiError, // Retain existing logic for apiError
-      isKeypadVisible: isKeypadVisible ?? this.isKeypadVisible, // Add this
+      apiError: clearApiError == true ? null : apiError ?? this.apiError,
+      isKeypadVisible:
+          isKeypadVisible ?? this.isKeypadVisible, // <--- ADDED THIS
     );
   }
 
@@ -78,7 +80,6 @@ class BaseFormState extends Equatable {
         isSuccess,
         isFailure,
         apiError,
-        isKeypadVisible, // Add this
-        // isFormValid is derived, so not in props directly
+        isKeypadVisible,
       ];
 }
