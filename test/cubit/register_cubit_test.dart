@@ -17,17 +17,32 @@ void main() {
     });
 
     test('initial state is correct', () {
-      expect(registerCubit.state.fields[RegisterCubit.emailKey]?.value, '');
-      expect(registerCubit.state.fields[RegisterCubit.passwordKey]?.value, '');
-      expect(registerCubit.state.fields[RegisterCubit.confirmPasswordKey]?.value, '');
-      expect(registerCubit.state.fields[RegisterCubit.firstNameKey]?.value, '');
-      expect(registerCubit.state.fields[RegisterCubit.lastNameKey]?.value, '');
-      expect(registerCubit.state.fields[RegisterCubit.termsKey]?.value, false);
-      // Check category initial state
-      expect(registerCubit.state.fields[RegisterCubit.categoryKey]?.value, isNull);
-      expect(registerCubit.state.fields[RegisterCubit.categoryKey]?.isValid, isFalse);
-      expect(registerCubit.state.fields[RegisterCubit.categoryKey]?.error, 'Category is required');
+      const initialCategoryFieldState = BaseFormFieldState(
+        value: null, // As per original test logic
+        initialValue: null,
+        error: 'Category is required', // As per original test logic
+        isValid: false, // As per original test logic
+      );
+
+      expect(
+        registerCubit.state,
+        const BaseFormState(
+          fields: {
+            RegisterCubit.emailKey: BaseFormFieldState(value: '', initialValue: ''),
+            RegisterCubit.passwordKey: BaseFormFieldState(value: '', initialValue: ''),
+            RegisterCubit.confirmPasswordKey: BaseFormFieldState(value: '', initialValue: ''),
+            RegisterCubit.firstNameKey: BaseFormFieldState(value: '', initialValue: ''),
+            RegisterCubit.lastNameKey: BaseFormFieldState(value: '', initialValue: ''),
+            RegisterCubit.termsKey: BaseFormFieldState(value: false, initialValue: false),
+            RegisterCubit.categoryKey: initialCategoryFieldState,
+          },
+          isKeypadVisible: true,
+        ),
+      );
+      // Explicitly check getter and specific field states not covered by direct BaseFormState equality
       expect(registerCubit.state.isFormValid, isFalse);
+      expect(registerCubit.state.fields[RegisterCubit.categoryKey]?.error, 'Category is required');
+      expect(registerCubit.state.fields[RegisterCubit.categoryKey]?.isValid, isFalse);
     });
 
     // Field Update Tests
@@ -38,7 +53,8 @@ void main() {
       expect: () => [
         isA<BaseFormState>()
             .having((s) => s.fields[RegisterCubit.firstNameKey]?.value, 'firstName value', 'John')
-            .having((s) => s.fields[RegisterCubit.firstNameKey]?.isValid, 'firstName isValid', isTrue),
+            .having((s) => s.fields[RegisterCubit.firstNameKey]?.isValid, 'firstName isValid', isTrue)
+            .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
       ],
     );
 
@@ -49,7 +65,8 @@ void main() {
       expect: () => [
         isA<BaseFormState>()
             .having((s) => s.fields[RegisterCubit.lastNameKey]?.value, 'lastName value', 'Doe')
-            .having((s) => s.fields[RegisterCubit.lastNameKey]?.isValid, 'lastName isValid', isTrue),
+            .having((s) => s.fields[RegisterCubit.lastNameKey]?.isValid, 'lastName isValid', isTrue)
+            .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
       ],
     );
 
@@ -60,7 +77,8 @@ void main() {
       expect: () => [
         isA<BaseFormState>()
             .having((s) => s.fields[RegisterCubit.emailKey]?.value, 'email value', 'test@example.com')
-            .having((s) => s.fields[RegisterCubit.emailKey]?.isValid, 'email isValid', isTrue),
+            .having((s) => s.fields[RegisterCubit.emailKey]?.isValid, 'email isValid', isTrue)
+            .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
       ],
     );
 
@@ -71,7 +89,8 @@ void main() {
       expect: () => [
         isA<BaseFormState>()
             .having((s) => s.fields[RegisterCubit.passwordKey]?.value, 'password value', 'password123')
-            .having((s) => s.fields[RegisterCubit.passwordKey]?.isValid, 'password isValid', isTrue),
+            .having((s) => s.fields[RegisterCubit.passwordKey]?.isValid, 'password isValid', isTrue)
+            .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
       ],
     );
 
@@ -79,14 +98,20 @@ void main() {
       'emits updated state for confirmPassword field',
       build: () {
         final cubit = RegisterCubit();
-        cubit.updateField(RegisterCubit.passwordKey, 'password123'); // Need password to be set for confirmPassword to be valid
+        cubit.updateField(RegisterCubit.passwordKey, 'password123');
         return cubit;
       },
       act: (cubit) => cubit.updateField(RegisterCubit.confirmPasswordKey, 'password123'),
       expect: () => [
+        // State after password update
+        isA<BaseFormState>()
+            .having((s) => s.fields[RegisterCubit.passwordKey]?.value, 'password value', 'password123')
+            .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+        // State after confirmPassword update
         isA<BaseFormState>()
             .having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.value, 'confirmPassword value', 'password123')
-            .having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.isValid, 'confirmPassword isValid', isTrue),
+            .having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.isValid, 'confirmPassword isValid', isTrue)
+            .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
       ],
     );
 
@@ -97,7 +122,8 @@ void main() {
       expect: () => [
         isA<BaseFormState>()
             .having((s) => s.fields[RegisterCubit.termsKey]?.value, 'terms value', true)
-            .having((s) => s.fields[RegisterCubit.termsKey]?.isValid, 'terms isValid', isTrue),
+            .having((s) => s.fields[RegisterCubit.termsKey]?.isValid, 'terms isValid', isTrue)
+            .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
       ],
     );
 
@@ -109,7 +135,8 @@ void main() {
         isA<BaseFormState>()
             .having((s) => s.fields[RegisterCubit.categoryKey]?.value, 'category value', RegisterCubit.categoryItems.first)
             .having((s) => s.fields[RegisterCubit.categoryKey]?.isValid, 'category isValid', isTrue)
-            .having((s) => s.fields[RegisterCubit.categoryKey]?.error, 'category error', isNull),
+            .having((s) => s.fields[RegisterCubit.categoryKey]?.error, 'category error', isNull)
+            .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
       ],
     );
 
@@ -123,7 +150,8 @@ void main() {
         expect: () => [
           isA<BaseFormState>()
               .having((s) => s.fields[RegisterCubit.firstNameKey]?.isValid, 'isValid', isFalse)
-              .having((s) => s.fields[RegisterCubit.firstNameKey]?.error, 'error', 'First name is required'),
+              .having((s) => s.fields[RegisterCubit.firstNameKey]?.error, 'error', 'First name is required')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
 
@@ -135,7 +163,8 @@ void main() {
         expect: () => [
           isA<BaseFormState>()
               .having((s) => s.fields[RegisterCubit.lastNameKey]?.isValid, 'isValid', isFalse)
-              .having((s) => s.fields[RegisterCubit.lastNameKey]?.error, 'error', 'Last name is required'),
+              .having((s) => s.fields[RegisterCubit.lastNameKey]?.error, 'error', 'Last name is required')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
 
@@ -147,7 +176,8 @@ void main() {
         expect: () => [
           isA<BaseFormState>()
               .having((s) => s.fields[RegisterCubit.emailKey]?.isValid, 'isValid', isFalse)
-              .having((s) => s.fields[RegisterCubit.emailKey]?.error, 'error', 'Email is required'),
+              .having((s) => s.fields[RegisterCubit.emailKey]?.error, 'error', 'Email is required')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
       blocTest<RegisterCubit, BaseFormState>(
@@ -157,7 +187,8 @@ void main() {
         expect: () => [
           isA<BaseFormState>()
               .having((s) => s.fields[RegisterCubit.emailKey]?.isValid, 'isValid', isFalse)
-              .having((s) => s.fields[RegisterCubit.emailKey]?.error, 'error', 'Enter a valid email'),
+              .having((s) => s.fields[RegisterCubit.emailKey]?.error, 'error', 'Enter a valid email')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
 
@@ -169,7 +200,8 @@ void main() {
         expect: () => [
           isA<BaseFormState>()
               .having((s) => s.fields[RegisterCubit.passwordKey]?.isValid, 'isValid', isFalse)
-              .having((s) => s.fields[RegisterCubit.passwordKey]?.error, 'error', 'Password is required'),
+              .having((s) => s.fields[RegisterCubit.passwordKey]?.error, 'error', 'Password is required')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
       blocTest<RegisterCubit, BaseFormState>(
@@ -179,7 +211,8 @@ void main() {
         expect: () => [
           isA<BaseFormState>()
               .having((s) => s.fields[RegisterCubit.passwordKey]?.isValid, 'isValid', isFalse)
-              .having((s) => s.fields[RegisterCubit.passwordKey]?.error, 'error', 'Password must be at least 6 characters'),
+              .having((s) => s.fields[RegisterCubit.passwordKey]?.error, 'error', 'Password must be at least 6 characters')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
 
@@ -191,9 +224,11 @@ void main() {
         expect: () => [
           isA<BaseFormState>()
               .having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.isValid, 'isValid', isFalse)
-              .having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.error, 'error', 'Confirm password is required'),
+              .having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.error, 'error', 'Confirm password is required')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
+
       blocTest<RegisterCubit, BaseFormState>(
         'confirmPassword is invalid if not matching password',
         build: () {
@@ -202,9 +237,19 @@ void main() {
           return cubit;
         },
         act: (cubit) => cubit.updateField(RegisterCubit.confirmPasswordKey, 'mismatch'),
-        // It might emit twice: once for value change, once for error from password re-evaluation.
-        // We care about the final state.
+        // Expect sequence: password update, then confirmPassword update with validation
+        expect: () => [
+            isA<BaseFormState>() // After password update
+                .having((s) => s.fields[RegisterCubit.passwordKey]?.value, 'password value', 'password123')
+                .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+            isA<BaseFormState>() // After confirmPassword update
+                .having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.value, 'confirmPassword value', 'mismatch')
+                .having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.isValid, 'isValid', isFalse)
+                .having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.error, 'error', 'Passwords do not match')
+                .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+        ],
         verify: (cubit) {
+          // Verify final state if needed, though expect handles it well for sequence
           final state = cubit.state.fields[RegisterCubit.confirmPasswordKey];
           expect(state?.isValid, isFalse);
           expect(state?.error, 'Passwords do not match');
@@ -216,12 +261,26 @@ void main() {
         build: () {
           final cubit = RegisterCubit();
           cubit.updateField(RegisterCubit.passwordKey, 'password123');
-          cubit.updateField(RegisterCubit.confirmPasswordKey, 'password123'); // initially matching
+          cubit.updateField(RegisterCubit.confirmPasswordKey, 'password123');
           return cubit;
         },
         act: (cubit) async {
-          cubit.updateField(RegisterCubit.passwordKey, 'newpassword'); // Change password
+          cubit.updateField(RegisterCubit.passwordKey, 'newpassword');
         },
+        // Expect: initial password, initial confirm, then new password causing confirm revalidation
+        expect: () => [
+            isA<BaseFormState>() // initial password
+                .having((s) => s.fields[RegisterCubit.passwordKey]?.isValid, 'password isValid', true)
+                .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+            isA<BaseFormState>() // initial confirm
+                .having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.isValid, 'confirm isValid', true)
+                .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+            isA<BaseFormState>() // new password, confirm becomes invalid
+                .having((s) => s.fields[RegisterCubit.passwordKey]?.value, 'new password value', 'newpassword')
+                .having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.isValid, 'confirm isValid after change', isFalse)
+                .having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.error, 'confirm error after change', 'Passwords do not match')
+                .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+        ],
         verify: (cubit) {
            expect(cubit.state.fields[RegisterCubit.confirmPasswordKey]?.isValid, isFalse);
            expect(cubit.state.fields[RegisterCubit.confirmPasswordKey]?.error, 'Passwords do not match');
@@ -233,12 +292,25 @@ void main() {
         build: () {
           final cubit = RegisterCubit();
           cubit.updateField(RegisterCubit.passwordKey, 'oldpassword');
-          cubit.updateField(RegisterCubit.confirmPasswordKey, 'password123'); // initially mismatching
+          cubit.updateField(RegisterCubit.confirmPasswordKey, 'password123');
           return cubit;
         },
         act: (cubit) async {
-          cubit.updateField(RegisterCubit.passwordKey, 'password123'); // Change password to match
+          cubit.updateField(RegisterCubit.passwordKey, 'password123');
         },
+        expect: () => [
+            isA<BaseFormState>() // old password
+                .having((s) => s.fields[RegisterCubit.passwordKey]?.value, 'old password value', 'oldpassword')
+                .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+            isA<BaseFormState>() // confirm password (mismatched)
+                .having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.isValid, 'confirm isValid initially', isFalse)
+                .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+            isA<BaseFormState>() // new password, confirm becomes valid
+                .having((s) => s.fields[RegisterCubit.passwordKey]?.value, 'new password value', 'password123')
+                .having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.isValid, 'confirm isValid after change', isTrue)
+                .having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.error, 'confirm error after change', isNull)
+                .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+        ],
         verify: (cubit) {
            expect(cubit.state.fields[RegisterCubit.confirmPasswordKey]?.isValid, isTrue);
            expect(cubit.state.fields[RegisterCubit.confirmPasswordKey]?.error, isNull);
@@ -253,7 +325,8 @@ void main() {
         expect: () => [
           isA<BaseFormState>()
               .having((s) => s.fields[RegisterCubit.termsKey]?.isValid, 'isValid', isFalse)
-              .having((s) => s.fields[RegisterCubit.termsKey]?.error, 'error', 'You must accept the terms and conditions'),
+              .having((s) => s.fields[RegisterCubit.termsKey]?.error, 'error', 'You must accept the terms and conditions')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
 
@@ -266,7 +339,8 @@ void main() {
           isA<BaseFormState>()
               .having((s) => s.fields[RegisterCubit.categoryKey]?.value, 'category value', isNull)
               .having((s) => s.fields[RegisterCubit.categoryKey]?.isValid, 'category isValid', isFalse)
-              .having((s) => s.fields[RegisterCubit.categoryKey]?.error, 'category error', 'Category is required'),
+              .having((s) => s.fields[RegisterCubit.categoryKey]?.error, 'category error', 'Category is required')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
        blocTest<RegisterCubit, BaseFormState>(
@@ -277,7 +351,8 @@ void main() {
           isA<BaseFormState>()
               .having((s) => s.fields[RegisterCubit.categoryKey]?.value, 'category value', RegisterCubit.categoryItems.first)
               .having((s) => s.fields[RegisterCubit.categoryKey]?.isValid, 'category isValid', isTrue)
-              .having((s) => s.fields[RegisterCubit.categoryKey]?.error, 'category error', null),
+              .having((s) => s.fields[RegisterCubit.categoryKey]?.error, 'category error', null)
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
     });
@@ -292,7 +367,7 @@ void main() {
         cubit.updateField(RegisterCubit.passwordKey, 'password123');
         cubit.updateField(RegisterCubit.confirmPasswordKey, 'password123');
         cubit.updateField(RegisterCubit.termsKey, true);
-        cubit.updateField(RegisterCubit.categoryKey, RegisterCubit.categoryItems.first); // Added category
+        cubit.updateField(RegisterCubit.categoryKey, RegisterCubit.categoryItems.first);
         return cubit;
       }
 
@@ -300,68 +375,114 @@ void main() {
         'emits [submitting, success] when form is valid and submission succeeds',
         build: _buildValidCubit,
         act: (cubit) => cubit.submit(),
-        expect: () => [
-          isA<BaseFormState>().having((s) => s.isSubmitting, 'isSubmitting', true),
-          isA<BaseFormState>()
+        expect: () {
+          // Account for all states emitted by _buildValidCubit + submission
+          final List<Matcher> expectedStates = [];
+          // States from _buildValidCubit
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.firstNameKey]?.value, 'firstName', 'John').having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.lastNameKey]?.value, 'lastName', 'Doe').having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.emailKey]?.value, 'email', 'john.doe@example.com').having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.passwordKey]?.value, 'password', 'password123').having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.value, 'confirmPassword', 'password123').having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.termsKey]?.value, 'terms', true).having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.categoryKey]?.value, 'category', RegisterCubit.categoryItems.first).having((s) => s.isFormValid, 'isFormValid', true).having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+
+          // Submission states
+          expectedStates.add(isA<BaseFormState>().having((s) => s.isSubmitting, 'isSubmitting', true).having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>()
               .having((s) => s.isSubmitting, 'isSubmitting', false)
               .having((s) => s.isSuccess, 'isSuccess', true)
               .having((s) => s.isFailure, 'isFailure', false)
-              .having((s) => s.apiError, 'apiError', null),
-        ],
+              .having((s) => s.apiError, 'apiError', null)
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          return expectedStates;
+        },
       );
 
       blocTest<RegisterCubit, BaseFormState>(
         'emits [submitting, failure with apiError] for "error@example.com"',
         build: () {
-          final cubit = _buildValidCubit(); // _buildValidCubit now sets category
+          final cubit = _buildValidCubit();
           cubit.updateField(RegisterCubit.emailKey, 'error@example.com');
           return cubit;
         },
         act: (cubit) => cubit.submit(),
-        expect: () => [
-          isA<BaseFormState>().having((s) => s.isSubmitting, 'isSubmitting', true),
-          isA<BaseFormState>()
+        expect: () {
+          final List<Matcher> expectedStates = [];
+          // States from _buildValidCubit (first 6 fields)
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.firstNameKey]?.value, 'firstName', 'John').having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.lastNameKey]?.value, 'lastName', 'Doe').having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.emailKey]?.value, 'email', 'john.doe@example.com').having((s) => s.isKeypadVisible, 'isKeypadVisible', true)); // This is before the 'error@example.com' update
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.passwordKey]?.value, 'password', 'password123').having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.value, 'confirmPassword', 'password123').having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.termsKey]?.value, 'terms', true).having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.categoryKey]?.value, 'category', RegisterCubit.categoryItems.first).having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+
+          // State from email update to 'error@example.com'
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.emailKey]?.value, 'email', 'error@example.com').having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+
+          // Submission states
+          expectedStates.add(isA<BaseFormState>().having((s) => s.isSubmitting, 'isSubmitting', true).having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>()
               .having((s) => s.isSubmitting, 'isSubmitting', false)
               .having((s) => s.isFailure, 'isFailure', true)
               .having((s) => s.isSuccess, 'isSuccess', false)
-              .having((s) => s.apiError, 'apiError', "This email is already registered. Please try another."),
-        ],
+              .having((s) => s.apiError, 'apiError', "This email is already registered. Please try another.")
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          return expectedStates;
+        },
       );
 
       blocTest<RegisterCubit, BaseFormState>(
         'emits [submitting, failure with apiError] for "networkerror@example.com"',
         build: () {
-          final cubit = _buildValidCubit(); // _buildValidCubit now sets category
+          final cubit = _buildValidCubit();
           cubit.updateField(RegisterCubit.emailKey, 'networkerror@example.com');
           return cubit;
         },
         act: (cubit) => cubit.submit(),
-        expect: () => [
-          isA<BaseFormState>().having((s) => s.isSubmitting, 'isSubmitting', true),
-          isA<BaseFormState>()
+        expect: () {
+           final List<Matcher> expectedStates = [];
+          // States from _buildValidCubit (first 6 fields)
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.firstNameKey]?.value, 'firstName', 'John').having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.lastNameKey]?.value, 'lastName', 'Doe').having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.emailKey]?.value, 'email', 'john.doe@example.com').having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.passwordKey]?.value, 'password', 'password123').having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.confirmPasswordKey]?.value, 'confirmPassword', 'password123').having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.termsKey]?.value, 'terms', true).having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.categoryKey]?.value, 'category', RegisterCubit.categoryItems.first).having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+
+          // State from email update to 'networkerror@example.com'
+          expectedStates.add(isA<BaseFormState>().having((s) => s.fields[RegisterCubit.emailKey]?.value, 'email', 'networkerror@example.com').having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+
+          // Submission states
+          expectedStates.add(isA<BaseFormState>().having((s) => s.isSubmitting, 'isSubmitting', true).having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          expectedStates.add(isA<BaseFormState>()
               .having((s) => s.isSubmitting, 'isSubmitting', false)
               .having((s) => s.isFailure, 'isFailure', true)
               .having((s) => s.isSuccess, 'isSuccess', false)
-              .having((s) => s.apiError, 'apiError', "A network error occurred. Please try again later."),
-        ],
+              .having((s) => s.apiError, 'apiError', "A network error occurred. Please try again later.")
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true));
+          return expectedStates;
+        },
       );
 
       blocTest<RegisterCubit, BaseFormState>(
         'emits [failure] with field errors when form is invalid and submit is called',
-        build: () => RegisterCubit(), // Start with an empty, invalid form
+        build: () => RegisterCubit(),
         act: (cubit) => cubit.submit(),
         expect: () => [
           isA<BaseFormState>()
               .having((s) => s.isFailure, 'isFailure', true)
-              .having((s) => s.isSubmitting, 'isSubmitting', false) // Should not be submitting
+              .having((s) => s.isSubmitting, 'isSubmitting', false)
               .having((s) => s.fields[RegisterCubit.emailKey]?.isValid, 'email isValid', isFalse)
               .having((s) => s.fields[RegisterCubit.emailKey]?.error, 'email error', 'Email is required')
               .having((s) => s.fields[RegisterCubit.firstNameKey]?.error, 'firstName error', 'First name is required')
               .having((s) => s.fields[RegisterCubit.categoryKey]?.isValid, 'category isValid', isFalse)
-              .having((s) => s.fields[RegisterCubit.categoryKey]?.error, 'category error', 'Category is required'),
+              .having((s) => s.fields[RegisterCubit.categoryKey]?.error, 'category error', 'Category is required')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
          verify: (cubit) {
-          // Ensure isFormValid is false and specific errors are present
           expect(cubit.state.isFormValid, isFalse);
           expect(cubit.state.fields[RegisterCubit.passwordKey]?.error, 'Password is required');
           expect(cubit.state.fields[RegisterCubit.termsKey]?.error, 'You must accept the terms and conditions');

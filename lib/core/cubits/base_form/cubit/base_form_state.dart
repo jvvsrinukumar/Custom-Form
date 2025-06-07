@@ -38,6 +38,8 @@ class BaseFormState extends Equatable {
   final bool isSuccess;
   final bool isFailure;
   final String? apiError;
+  final bool isKeypadVisible; // Add this
+  // Note: isFormValid is a getter, so it's not included as a field
 
   const BaseFormState({
     required this.fields,
@@ -45,25 +47,38 @@ class BaseFormState extends Equatable {
     this.isSuccess = false,
     this.isFailure = false,
     this.apiError,
+    this.isKeypadVisible = true, // Default to true
   });
 
   bool get isFormValid => fields.values.every((f) => f.isValid);
 
-  BaseFormState copyWith(
-      {Map<String, BaseFormFieldState>? fields,
-      bool? isSubmitting,
-      bool? isSuccess,
-      bool? isFailure,
-      String? apiError}) {
+  BaseFormState copyWith({
+    Map<String, BaseFormFieldState>? fields,
+    bool? isSubmitting,
+    bool? isSuccess,
+    bool? isFailure,
+    String? apiError,
+    bool? clearApiError, // Keep existing clearApiError functionality if needed elsewhere, though not in original snippet. For safety, I'll base it on the user's original intent.
+    bool? isKeypadVisible, // Add this
+  }) {
     return BaseFormState(
       fields: fields ?? this.fields,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       isSuccess: isSuccess ?? this.isSuccess,
       isFailure: isFailure ?? this.isFailure,
-      apiError: apiError ?? this.apiError,
+      apiError: clearApiError == true ? null : apiError ?? this.apiError, // Retain existing logic for apiError
+      isKeypadVisible: isKeypadVisible ?? this.isKeypadVisible, // Add this
     );
   }
 
   @override
-  List<Object?> get props => [fields, isSubmitting, isSuccess, isFailure];
+  List<Object?> get props => [
+        fields,
+        isSubmitting,
+        isSuccess,
+        isFailure,
+        apiError,
+        isKeypadVisible, // Add this
+        // isFormValid is derived, so not in props directly
+      ];
 }

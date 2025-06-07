@@ -16,11 +16,21 @@ void main() {
     });
 
     test('initial state is correct', () {
-      // After constructor, initializeFormFields is called.
-      expect(loginCubit.state.fields[LoginCubit.emailKey]?.value, '');
-      expect(loginCubit.state.fields[LoginCubit.passwordKey]?.value, '');
-      expect(loginCubit.state.fields[LoginCubit.checkoutKey]?.value, false);
-      expect(loginCubit.state.isFormValid, isFalse); // Due to required fields
+      expect(
+        loginCubit.state,
+        const BaseFormState(
+          fields: {
+            LoginCubit.emailKey: BaseFormFieldState(value: '', initialValue: ''),
+            LoginCubit.passwordKey: BaseFormFieldState(value: '', initialValue: ''),
+            LoginCubit.checkoutKey: BaseFormFieldState(value: false, initialValue: false),
+          },
+          // isFormValid is a getter, so not part of the direct state comparison here.
+          // It will be false due to initial empty required fields.
+          isKeypadVisible: true,
+        ),
+      );
+      // Explicitly check getter
+      expect(loginCubit.state.isFormValid, isFalse);
     });
 
     // Field Update Tests
@@ -31,7 +41,8 @@ void main() {
       expect: () => [
         isA<BaseFormState>()
             .having((s) => s.fields[LoginCubit.emailKey]?.value, 'email value', 'test@example.com')
-            .having((s) => s.fields[LoginCubit.emailKey]?.isValid, 'email isValid', isTrue),
+            .having((s) => s.fields[LoginCubit.emailKey]?.isValid, 'email isValid', isTrue)
+            .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
       ],
     );
 
@@ -42,7 +53,8 @@ void main() {
       expect: () => [
         isA<BaseFormState>()
             .having((s) => s.fields[LoginCubit.passwordKey]?.value, 'password value', 'password123')
-            .having((s) => s.fields[LoginCubit.passwordKey]?.isValid, 'password isValid', isTrue),
+            .having((s) => s.fields[LoginCubit.passwordKey]?.isValid, 'password isValid', isTrue)
+            .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
       ],
     );
 
@@ -53,7 +65,8 @@ void main() {
       expect: () => [
         isA<BaseFormState>()
             .having((s) => s.fields[LoginCubit.checkoutKey]?.value, 'checkout value', true)
-            .having((s) => s.fields[LoginCubit.checkoutKey]?.isValid, 'checkout isValid', isTrue),
+            .having((s) => s.fields[LoginCubit.checkoutKey]?.isValid, 'checkout isValid', isTrue)
+            .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
       ],
     );
 
@@ -66,7 +79,8 @@ void main() {
         expect: () => [
           isA<BaseFormState>()
               .having((s) => s.fields[LoginCubit.emailKey]?.isValid, 'isValid', isFalse)
-              .having((s) => s.fields[LoginCubit.emailKey]?.error, 'error', 'Email required'),
+              .having((s) => s.fields[LoginCubit.emailKey]?.error, 'error', 'Email required')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
 
@@ -77,7 +91,8 @@ void main() {
         expect: () => [
           isA<BaseFormState>()
               .having((s) => s.fields[LoginCubit.emailKey]?.isValid, 'isValid', isFalse)
-              .having((s) => s.fields[LoginCubit.emailKey]?.error, 'error', 'Enter valid email'),
+              .having((s) => s.fields[LoginCubit.emailKey]?.error, 'error', 'Enter valid email')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
 
@@ -88,7 +103,8 @@ void main() {
         expect: () => [
           isA<BaseFormState>()
               .having((s) => s.fields[LoginCubit.passwordKey]?.isValid, 'isValid', isFalse)
-              .having((s) => s.fields[LoginCubit.passwordKey]?.error, 'error', 'Password required'),
+              .having((s) => s.fields[LoginCubit.passwordKey]?.error, 'error', 'Password required')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
 
@@ -99,7 +115,8 @@ void main() {
         expect: () => [
           isA<BaseFormState>()
               .having((s) => s.fields[LoginCubit.passwordKey]?.isValid, 'isValid', isFalse)
-              .having((s) => s.fields[LoginCubit.passwordKey]?.error, 'error', 'Min 6 characters'),
+              .having((s) => s.fields[LoginCubit.passwordKey]?.error, 'error', 'Min 6 characters')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
 
@@ -110,7 +127,8 @@ void main() {
         expect: () => [
           isA<BaseFormState>()
               .having((s) => s.fields[LoginCubit.checkoutKey]?.isValid, 'isValid', isFalse)
-              .having((s) => s.fields[LoginCubit.checkoutKey]?.error, 'error', 'Must accept terms'),
+              .having((s) => s.fields[LoginCubit.checkoutKey]?.error, 'error', 'Must accept terms')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
     });
@@ -119,6 +137,7 @@ void main() {
     group('Form Submission', () {
       LoginCubit _buildValidCubit() {
         final cubit = LoginCubit();
+        // These calls will each emit a state. The blocTest framework handles this.
         cubit.updateField(LoginCubit.emailKey, 'test@example.com');
         cubit.updateField(LoginCubit.passwordKey, 'password123');
         cubit.updateField(LoginCubit.checkoutKey, true);
@@ -129,11 +148,31 @@ void main() {
         'emits [submitting, success] when form is valid and submission succeeds',
         build: _buildValidCubit,
         act: (cubit) => cubit.submit(), // submit() will call submitForm internally
+        // The expect array should account for states emitted by _buildValidCubit's updates + submission states
         expect: () => [
-          isA<BaseFormState>().having((s) => s.isSubmitting, 'isSubmitting', true),
+          // State after email update in _buildValidCubit
+          isA<BaseFormState>()
+              .having((s) => s.fields[LoginCubit.emailKey]?.value, 'email value', 'test@example.com')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+          // State after password update in _buildValidCubit
+          isA<BaseFormState>()
+              .having((s) => s.fields[LoginCubit.passwordKey]?.value, 'password value', 'password123')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+          // State after checkout update in _buildValidCubit (form becomes valid)
+          isA<BaseFormState>()
+              .having((s) => s.fields[LoginCubit.checkoutKey]?.value, 'checkout value', true)
+              .having((s) => s.isFormValid, 'isFormValid', true)
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+          // State when submitting
+          isA<BaseFormState>()
+              .having((s) => s.isSubmitting, 'isSubmitting', true)
+              .having((s) => s.isFormValid, 'isFormValid', true) // Form is still valid
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+          // State after successful submission
           isA<BaseFormState>()
               .having((s) => s.isSubmitting, 'isSubmitting', false)
-              .having((s) => s.isSuccess, 'isSuccess', true),
+              .having((s) => s.isSuccess, 'isSuccess', true)
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
 
@@ -141,52 +180,37 @@ void main() {
         'emits [submitting, failure with apiError] when submitForm has an error',
         build: () {
           final cubit = _buildValidCubit();
-          // To simulate an error, one way is to change a value that submitForm then uses to cause a caught exception.
-          // Or, if submitForm could be mocked, that would be cleaner.
-          // For now, let's assume a specific email could trigger a handled error in a real scenario.
-          // The current LoginCubit.submitForm always succeeds after delay.
-          // To test failure, we'd need to modify LoginCubit.submitForm to throw for certain inputs.
-          // For this test, we'll assume a general error case.
-          // This test will be more meaningful if LoginCubit.submitForm can actually fail.
-          // As it stands, it will pass like the success test.
-          // Let's modify the cubit's actual submitForm to be able to throw for testing.
-          // For now, this test shows the ideal states if a failure were to occur and be caught.
-          // We can adjust LoginCubit for a testable failure.
-          // Let's assume for a moment that providing "fail@example.com" makes it fail.
-          // cubit.updateField(LoginCubit.emailKey, 'fail@example.com');
-          return cubit; // This cubit will succeed.
+          // This test case, as noted in the original file, doesn't actually cause a failure in LoginCubit.
+          // It will behave like the success test. I'm adding isKeypadVisible for consistency.
+          return cubit;
         },
         act: (cubit) async {
-          // To make it fail for this test, we'd need to modify the cubit or mock its API call.
-          // Sticking to testing the provided LoginCubit, this test as is will show success.
-          // If we want to test failure, we need a way for submitForm to fail.
-          // The current LoginCubit's submitForm doesn't have a built-in failure path based on input values, only a generic catch.
-          // So, this test will be similar to the success one.
-          // A more robust way would be to inject a service that submitForm calls, and mock that service.
-          // For now, we rely on the generic catch block in submitForm.
-          // To actually test this, we can't make it fail based on inputs *without changing the cubit code*.
-          // The current LoginCubit's submitForm only has a generic catch.
-          // So, the test for failure for LoginCubit isn't very effective without modifying the cubit to have a failure path.
-          // However, the AddressEntryCubit had a clear failure path, so its test was more illustrative.
-          // Let's keep the structure, assuming a failure could happen.
-          if (cubit.state.fields[LoginCubit.emailKey]?.value == 'fail@example.com') {
-             // This condition is hypothetical for the test.
-             // In the actual cubit, there's no logic for 'fail@example.com' to cause failure.
-            cubit.emit(cubit.state.copyWith(isSubmitting:false, isFailure:true, apiError: "Simulated error"));
-          } else {
-            await cubit.submit(); // This will lead to success.
-          }
+          // Simulating the original logic which would lead to success here.
+          await cubit.submit();
         },
-        // This expect is for an ideal failure case.
-        // Given the current LoginCubit, it will likely emit success states.
         expect: () => [
-          isA<BaseFormState>().having((s) => s.isSubmitting, 'isSubmitting', true),
-          // If 'fail@example.com' logic was in cubit:
-          // isA<BaseFormState>().having((s) => s.isFailure, 'isFailure', true).having((s) => s.apiError, 'apiError', "Simulated error"),
+           // State after email update
+          isA<BaseFormState>()
+              .having((s) => s.fields[LoginCubit.emailKey]?.value, 'email value', 'test@example.com')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+          // State after password update
+          isA<BaseFormState>()
+              .having((s) => s.fields[LoginCubit.passwordKey]?.value, 'password value', 'password123')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+          // State after checkout update
+          isA<BaseFormState>()
+              .having((s) => s.fields[LoginCubit.checkoutKey]?.value, 'checkout value', true)
+              .having((s) => s.isFormValid, 'isFormValid', true)
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+          // Submitting state
+          isA<BaseFormState>()
+              .having((s) => s.isSubmitting, 'isSubmitting', true)
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
           // Actual for current cubit (success path):
            isA<BaseFormState>()
               .having((s) => s.isSubmitting, 'isSubmitting', false)
-              .having((s) => s.isSuccess, 'isSuccess', true),
+              .having((s) => s.isSuccess, 'isSuccess', true)
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
       );
 
@@ -196,15 +220,20 @@ void main() {
         build: () => LoginCubit(), // Start with an empty, invalid form
         act: (cubit) => cubit.submit(),
         expect: () => [
+          // This state reflects the form after validation triggered by submit()
           isA<BaseFormState>()
-              .having((s) => s.isFailure, 'isFailure', true) // BaseFormCubit's submit() sets this
+              .having((s) => s.isFailure, 'isFailure', true)
               .having((s) => s.isSubmitting, 'isSubmitting', false)
               .having((s) => s.fields[LoginCubit.emailKey]?.isValid, 'email isValid', isFalse)
-              .having((s) => s.fields[LoginCubit.emailKey]?.error, 'email error', 'Email required'),
+              .having((s) => s.fields[LoginCubit.emailKey]?.error, 'email error', 'Email required')
+              // Password and checkout will also have errors due to initial validation by submit()
+              .having((s) => s.fields[LoginCubit.passwordKey]?.error, 'password error', 'Password required')
+              .having((s) => s.fields[LoginCubit.checkoutKey]?.error, 'checkout error', 'Must accept terms')
+              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
         ],
         verify: (cubit) {
           expect(cubit.state.isFormValid, isFalse);
-          expect(cubit.state.fields[LoginCubit.passwordKey]?.error, 'Password required');
+          // Errors are already checked in the expect block.
         }
       );
     });
