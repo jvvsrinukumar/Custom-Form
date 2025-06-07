@@ -289,4 +289,35 @@ void main() {
   });
   // Removed Digit Manipulation group as appendDigit/deleteDigit were removed from cubit
   // });
+
+  group('onPhoneNumberChangedByUI', () { // Or add to an existing relevant group
+    const String phoneNumberKey = PhoneNumberCubit.phoneNumberKey;
+
+    blocTest<PhoneNumberCubit, BaseFormState>(
+      'onPhoneNumberChangedByUI updates field and triggers validation',
+      build: () => PhoneNumberCubit(),
+      act: (cubit) => cubit.onPhoneNumberChangedByUI('123'),
+      expect: () => [
+        isA<BaseFormState>()
+          .having((s) => s.fields[phoneNumberKey]?.value, 'value', '123')
+          // Check for validation error if '123' is invalid by current rules
+          .having((s) => s.fields[phoneNumberKey]?.error, 'error', 'Enter a valid 10-digit phone number')
+          .having((s) => s.isFormValid, 'isFormValid', false)
+          .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+      ],
+    );
+
+    blocTest<PhoneNumberCubit, BaseFormState>(
+      'onPhoneNumberChangedByUI updates field with valid number',
+      build: () => PhoneNumberCubit(),
+      act: (cubit) => cubit.onPhoneNumberChangedByUI('1234567890'),
+      expect: () => [
+        isA<BaseFormState>()
+          .having((s) => s.fields[phoneNumberKey]?.value, 'value', '1234567890')
+          .having((s) => s.fields[phoneNumberKey]?.error, 'error', null) // Expect no error
+          .having((s) => s.isFormValid, 'isFormValid', true)     // Expect form to be valid
+          .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+      ],
+    );
+  });
 }

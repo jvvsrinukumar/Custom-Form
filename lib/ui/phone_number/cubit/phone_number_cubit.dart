@@ -50,4 +50,8 @@ class PhoneNumberCubit extends BaseFormCubit {
       emit(state.copyWith(isKeypadVisible: false));
     }
   }
+
+  void onPhoneNumberChangedByUI(String newPhoneNumber) {
+    updateField(phoneNumberKey, newPhoneNumber);
+  }
 }

@@ -13,6 +13,7 @@ class PhoneNumberPage extends StatefulWidget {
 
 class _PhoneNumberPageState extends State<PhoneNumberPage> {
   late final TextEditingController _phoneNumberController;
+  PhoneNumberCubit? _cubitInstance;
   // bool _isKeypadVisible = true; // Removed
 
   @override
@@ -20,6 +21,18 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
     super.initState();
     _phoneNumberController = TextEditingController();
     _phoneNumberController.addListener(_onPhoneNumberChanged); // Add listener
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies(); // Call super first
+    // Initialize _cubitInstance here if it hasn't been already,
+    // or if it might change (though for a BlocProvider directly in this widget's build, it usually doesn't change).
+    // It's generally safe to assign it here as this method is called after initState
+    // and when dependencies change.
+    if (_cubitInstance == null) { // Initialize only once or if it needs to be refreshed
+       _cubitInstance = context.read<PhoneNumberCubit>();
+    }
   }
 
   void _onPhoneNumberChanged() {
@@ -31,10 +44,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
     // The listener will be called AFTER initState.
     // We can use context.read inside the listener method.
     if (mounted) { // Ensure widget is still in the tree
-      context.read<PhoneNumberCubit>().updateField(
-            PhoneNumberCubit.phoneNumberKey,
-            _phoneNumberController.text,
-          );
+      _cubitInstance?.onPhoneNumberChangedByUI(_phoneNumberController.text);
     }
   }
 
