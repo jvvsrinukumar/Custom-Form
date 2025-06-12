@@ -1,46 +1,20 @@
+import 'package:custom_form/core/cubits/base_form/cubit/base_form_state.dart';
 import 'package:custom_form/ui/phone_number/cubit/phone_number_cubit.dart';
-import 'package:custom_form/ui/phone_number/cubit/phone_number_state.dart'; // Import DontDisturb
-import 'package:custom_form/widgets/custom_numeric_keypad.dart';
+import 'package:custom_form/ui/phone_number/cubit/phone_number_state.dart'; // For DontDisturb
+import 'package:custom_form/widgets/app_phone_field_with_keypad.dart'; // Import the new widget
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:custom_form/core/cubits/base_form/cubit/base_form_state.dart';
 
-class PhoneNumberPage extends StatefulWidget {
+class PhoneNumberPage extends StatelessWidget { // Changed to StatelessWidget
   const PhoneNumberPage({super.key});
 
-  @override
-  State<PhoneNumberPage> createState() => _PhoneNumberPageState();
-}
-
-class _PhoneNumberPageState extends State<PhoneNumberPage> {
-  late final TextEditingController _phoneNumberController;
-
-  @override
-  void initState() {
-    super.initState();
-    _phoneNumberController = TextEditingController();
-    // REMOVED: _phoneNumberController.addListener(_onPhoneNumberControllerChanged);
-    // The CustomNumericKeypad's onChanged callback handles cubit updates.
-  }
-
-  @override
-  void dispose() {
-    // REMOVED: _phoneNumberController.removeListener(_onPhoneNumberControllerChanged);
-    _phoneNumberController.dispose();
-    super.dispose();
-  }
-
-  // REMOVED: _onPhoneNumberControllerChanged method as it's no longer needed here.
-  // The keypad's onChanged callback is the primary way to update the cubit.
-
-  void _clearPhoneNumber(BuildContext context) { // context here is from the builder
-    _phoneNumberController.clear();
-    // Also update the cubit state when clearing directly
-    context.read<PhoneNumberCubit>().onPhoneNumberChanged("");
-  }
+  // Removed initState, dispose, _phoneNumberController, _clearPhoneNumber, etc.
 
   @override
   Widget build(BuildContext context) {
+    // It's good practice to provide the Cubit at a level where all
+    // widgets that need it can access it. If NavigationPage pushes this,
+    // it might be provided there or here. For standalone use, providing here is fine.
     return BlocProvider(
       create: (_) => PhoneNumberCubit(),
       child: Scaffold(
@@ -53,25 +27,27 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                 prev.isFailure != curr.isFailure ||
                 prev.apiError != curr.apiError;
           },
-          listener: (context, state) { // This 'context' is a descendant and valid
+          listener: (context, state) {
+            final cubit = context.read<PhoneNumberCubit>(); // Get cubit for clearing
             if (state is DontDisturb) {
               ScaffoldMessenger.of(context)
                 ..hideCurrentSnackBar()
                 ..showSnackBar(
                   SnackBar(content: Text('DND Active for: ${state.name}')),
                 );
-              _clearPhoneNumber(context); // Pass the valid context
+              // Clear the field via cubit. AppPhoneFieldWithKeypad will update via didUpdateWidget.
+              cubit.onPhoneNumberChanged("");
             } else if (state.isSuccess) {
               ScaffoldMessenger.of(context)
                 ..hideCurrentSnackBar()
                 ..showSnackBar(
                   const SnackBar(content: Text('Phone Number Submitted!')),
                 );
-              _clearPhoneNumber(context); // Pass the valid context
+              cubit.onPhoneNumberChanged("");
             } else if (state.isFailure && state.apiError != null) {
               showDialog(
-                context: context, // This context is valid
-                builder: (dialogContext) => AlertDialog( // dialogContext is also fine
+                context: context,
+                builder: (dialogContext) => AlertDialog(
                   title: const Text("Error"),
                   content: Text(state.apiError!),
                   actions: [
@@ -84,97 +60,59 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
               );
             }
           },
-          builder: (context, state) { // This 'context' is a descendant and valid
+          builder: (context, state) {
             final cubit = context.read<PhoneNumberCubit>();
 
-            final expectedText =
-                state.fields[PhoneNumberCubit.phoneNumberKey]?.value as String? ?? '';
-            if (_phoneNumberController.text != expectedText) {
-              _phoneNumberController.text = expectedText;
-              _phoneNumberController.selection = TextSelection.fromPosition(
-                TextPosition(offset: _phoneNumberController.text.length),
-              );
-            }
-
-            return Stack(
+            return Stack( // Using Stack to potentially overlay messages or loaders if needed by page
               children: [
                 Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      BlocBuilder<PhoneNumberCubit, BaseFormState>(
-                        builder: (context, fieldState) { // This context is valid
-                          return TextFormField(
-                            controller: _phoneNumberController,
-                            decoration: InputDecoration(
-                              labelText: 'Phone Number',
-                              hintText: 'Enter your phone number',
-                              errorText: fieldState
-                                  .fields[PhoneNumberCubit.phoneNumberKey]
-                                  ?.error,
-                              border: const OutlineInputBorder(),
-                            ),
-                            keyboardType: TextInputType.none,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 20),
-                            readOnly: true,
-                            onTap: () {
-                              // context.read<PhoneNumberCubit>() would also be valid here
-                              cubit.showKeypad();
-                            },
-                          );
+                      AppPhoneFieldWithKeypad(
+                        label: "Phone Number",
+                        value: state.fields[PhoneNumberCubit.phoneNumberKey]?.value as String? ?? '',
+                        errorText: state.fields[PhoneNumberCubit.phoneNumberKey]?.error,
+                        onChanged: (newValue) {
+                          cubit.onPhoneNumberChanged(newValue);
                         },
+                        // If AppPhoneFieldWithKeypad handled its own keypad visibility entirely,
+                        // then cubit.showKeypad/hideKeypad calls might not be needed from here.
+                        // The current AppPhoneFieldWithKeypad manages its own keypad visibility.
                       ),
                       const SizedBox(height: 24),
-                      BlocBuilder<PhoneNumberCubit, BaseFormState>(
-                        builder: (context, buttonState) { // This context is valid
-                          return SizedBox(
-                            width: double.infinity,
-                            height: 50,
-                            child: ElevatedButton(
-                              onPressed: buttonState.isFormValid &&
-                                      !buttonState.isSubmitting
-                                  // context.read<PhoneNumberCubit>() would also be valid here
-                                  ? () => cubit.submit()
-                                  : null,
-                              child: buttonState.isSubmitting
-                                  ? const SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2),
-                                    )
-                                  : const Text('Next',
-                                      style: TextStyle(fontSize: 18)),
-                            ),
-                          );
-                        },
+                      ElevatedButton(
+                        onPressed: state.isFormValid && !state.isSubmitting
+                            ? () => cubit.submit()
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          // minimumSize: const Size(double.infinity, 50), // Ensure button stretches if needed
+                        ),
+                        child: state.isSubmitting
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text('Next', style: TextStyle(fontSize: 18)),
                       ),
-                      const SizedBox(height: 100),
+                      // The CustomNumericKeypad is now inside AppPhoneFieldWithKeypad
+                      // So no need to conditionally display it here based on state.isKeypadVisible
+                      // unless AppPhoneFieldWithKeypad exposes a way to control it externally AND
+                      // the cubit state `isKeypadVisible` is still the source of truth.
+                      // For now, AppPhoneFieldWithKeypad manages this internally.
                     ],
                   ),
                 ),
-                if (state.isKeypadVisible)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: Material(
-                      elevation: 8,
-                      color: Theme.of(context).colorScheme.surface,
-                      child: SafeArea(
-                        top: false,
-                        child: CustomNumericKeypad(
-                          controller: _phoneNumberController,
-                          onChanged: (text) {
-                            // This context is from the BlocConsumer's builder, which is valid.
-                            context
-                                .read<PhoneNumberCubit>()
-                                .onPhoneNumberChanged(text);
-                          },
-                        ),
-                      ),
+                // Global loader for page-level submission if needed, though button has its own.
+                if (state.isSubmitting && state.isFormValid) // Show general loader if form is valid and submitting
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black.withOpacity(0.1),
+                      child: const Center(child: CircularProgressIndicator()),
                     ),
                   ),
               ],

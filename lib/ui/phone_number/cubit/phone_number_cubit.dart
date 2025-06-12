@@ -6,9 +6,9 @@ class PhoneNumberCubit extends BaseFormCubit {
   static const String phoneNumberKey = 'phoneNumber';
 
   PhoneNumberCubit() : super() {
-    // Initialize form fields specific to this cubit
     initializeFormFields({
       phoneNumberKey: const BaseFormFieldState(value: '', isValid: false),
+      // BaseFormState defaults isKeypadVisible to true, which is fine for initial state.
     });
   }
 
@@ -19,8 +19,6 @@ class PhoneNumberCubit extends BaseFormCubit {
           if (sVal == null || sVal.isEmpty) {
             return 'Phone number cannot be empty.';
           }
-          // Regex for 10 to 15 digits, allowing for international numbers without specific country codes yet
-          // For more specific validation like 10-digits only: r'^[0-9]{10}$'
           if (!RegExp(r'^[0-9]{10,15}$').hasMatch(sVal)) {
             if (sVal.length < 10) {
               return 'Phone number must be at least 10 digits.';
@@ -34,56 +32,43 @@ class PhoneNumberCubit extends BaseFormCubit {
         },
       };
 
-  // Method to be called by UI when text field changes for phone number
   void onPhoneNumberChanged(String value) {
+    // When phone number is changed, we might want to ensure keypad stays visible
+    // if it was already visible. Or, BaseFormCubit's updateField just preserves current state.
+    // If updateField is called, the current state (including isKeypadVisible) is preserved by default
+    // unless explicitly changed in copyWith.
+    // If the user starts typing, keypad should be visible. AppPhoneFieldWithKeypad handles this.
     updateField(phoneNumberKey, value);
   }
 
-  // Controls keypad visibility - example methods
-  void showKeypad() {
-    if (!state.isKeypadVisible) {
-      emit(state.copyWith(isKeypadVisible: true));
-    }
-  }
-
-  void hideKeypad() {
-    if (state.isKeypadVisible) {
-      emit(state.copyWith(isKeypadVisible: false));
-    }
-  }
+  // REMOVED: showKeypad() and hideKeypad() methods
 
   @override
   Future<void> submitForm(Map<String, dynamic> values) async {
-    // This method is called by BaseFormCubit's submit() after validation
-    // state.isSubmitting is already true here.
-
     final phoneNumber = values[phoneNumberKey] as String?;
+    await Future.delayed(const Duration(seconds: 1)); // Simulate API
 
-    // Simulate API call or specific logic
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (phoneNumber == '1234567890') { // Example: specific number for DND check
-      // When emitting a custom state, ensure all BaseFormState fields are appropriately set.
+    if (phoneNumber == '1234567890') {
       emit(DontDisturb(
-        name: "Test User DND", // Example name
-        fields: state.fields, // Preserve current field states
-        isSubmitting: false, // Explicitly set isSubmitting to false
-        isSuccess: true, // DND is a form of success
-        isKeypadVisible: state.isKeypadVisible, // Preserve keypad state or set as needed
-        // apiError and isFailure should be default or explicitly set if needed
+        name: "Test User DND",
+        fields: state.fields,
+        isSubmitting: false,
+        isSuccess: true,
+        isKeypadVisible: false, // Hide keypad on DND state
       ));
-    } else if (phoneNumber == '0000000000') { // Example: specific number for failure
+    } else if (phoneNumber == '0000000000') {
        emit(state.copyWith(
         isSubmitting: false,
         isFailure: true,
         apiError: "This phone number is blocked.",
+        isKeypadVisible: false, // Hide keypad on failure
       ));
     }
     else {
-      // Generic success
       emit(state.copyWith(
         isSubmitting: false,
         isSuccess: true,
+        isKeypadVisible: false, // Hide keypad on success
       ));
     }
   }
