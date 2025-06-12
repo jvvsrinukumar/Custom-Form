@@ -6,7 +6,8 @@ class AppTextField extends StatefulWidget {
   final String? errorText;
   final bool obscureText;
   final TextInputType keyboardType;
-  final Function(String)? onChanged; // This will be called when the text actually changes
+  final Function(String)?
+      onChanged; // This will be called when the text actually changes
   final Widget? suffixIcon;
   // The existing 'controller' property is removed.
 
@@ -33,22 +34,6 @@ class _AppTextFieldState extends State<AppTextField> {
     super.initState();
     // Initialize the internal controller with the initial value from the widget.
     _controller = TextEditingController(text: widget.value);
-  }
-
-  @override
-  void didUpdateWidget(AppTextField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // If the value passed to the widget changes externally (e.g., from cubit state),
-    // and it's different from the controller's current text, update the controller.
-    // This ensures the field reflects programmatic changes.
-    final newValue = widget.value ?? '';
-    if (newValue != _controller.text) {
-      _controller.text = newValue;
-      // Move cursor to the end after programmatic change
-      _controller.selection = TextSelection.fromPosition(
-        TextPosition(offset: _controller.text.length),
-      );
-    }
   }
 
   @override

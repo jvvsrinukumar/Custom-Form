@@ -1,12 +1,12 @@
 import 'package:custom_form/core/cubits/base_form/cubit/base_form_cubit.dart';
 import 'package:custom_form/core/cubits/base_form/cubit/base_form_state.dart';
 
-typedef FieldValidator = String? Function(
-    dynamic value, Map<String, dynamic> allValues);
+// typedef FieldValidator = String? Function(
+//     dynamic value, Map<String, dynamic> allValues);
 
 class PhoneNumberCubit extends BaseFormCubit {
   static const String phoneNumberKey = 'phoneNumber';
-
+  String defaultPhone = '';
   final Map<String, FieldValidator> _fieldValidators = {
     phoneNumberKey: (value, _) {
       if (value == null || value.toString().isEmpty)
@@ -20,8 +20,11 @@ class PhoneNumberCubit extends BaseFormCubit {
 
   PhoneNumberCubit() : super() {
     initializeFormFields({
-      phoneNumberKey:
-          const BaseFormFieldState(value: '', initialValue: '', isValid: false),
+      phoneNumberKey: BaseFormFieldState(
+        value: defaultPhone,
+        initialValue: defaultPhone,
+        isValid: _fieldValidators[phoneNumberKey]!(defaultPhone, {}) == null,
+      ),
     });
     // Keypad visible initially if you want:
     emit(state.copyWith(isKeypadVisible: true));
