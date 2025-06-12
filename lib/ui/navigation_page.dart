@@ -3,6 +3,7 @@ import 'package:custom_form/ui/address_entry/address_entry_page.dart';
 import 'package:custom_form/ui/login/login_page.dart';
 import 'package:custom_form/ui/phone_number/phone_number_page.dart';
 import 'package:custom_form/ui/register/register_page.dart';
+import 'package:custom_form/ui/login_phone/login_phone_page.dart'; // Add this import
 import 'package:flutter/material.dart';
 
 class NavigationPage extends StatelessWidget {
@@ -74,6 +75,16 @@ class NavigationPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const PhoneNumberPage()),
+              );
+            },
+          ),
+          const SizedBox(height: 16.0), // Add some spacing if needed
+          ElevatedButton(
+            child: const Text('Login with Phone'), // New Button
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginPhonePage()),
               );
             },
           ),
