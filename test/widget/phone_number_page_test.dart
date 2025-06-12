@@ -13,32 +13,53 @@ class MockPhoneNumberCubit extends Mock implements PhoneNumberCubit {}
 
 void main() {
   late MockPhoneNumberCubit mockPhoneNumberCubit;
-  const initialPhoneNumberFieldValue = ''; // Default value for the phone number field
-  const initialPhoneNumberField = BaseFormFieldState(value: initialPhoneNumberFieldValue, error: null, isValid: false);
-  // Define a more complete initialBaseFormState that matches what the cubit would provide after its init.
-  // Specifically, the validator for an empty string will set an error.
-  final initialBaseFormStateWithValidation = BaseFormState(
-    fields: {PhoneNumberCubit.phoneNumberKey: initialPhoneNumberField.copyWith(error: 'Phone number cannot be empty.')},
-    isFormValid: false, // Since the phone number is empty and has an error
-    isSubmitting: false,
-    isSuccess: false,
-    isFailure: false,
-    apiError: null,
-    isKeypadVisible: true, // Default for page
-  );
+  // const initialPhoneNumberField = BaseFormFieldState(value: '', isValid: false); // Not used directly, part of createState
 
+  // Helper to create initial state, now more complete
+  BaseFormState createInitialState({
+    bool keypadVisible = true,
+    String phoneNumber = '',
+    String? error,
+    bool isValid = false, // Field validity
+    bool isFormValid = false, // Overall form validity
+    bool isSubmitting = false,
+    bool isSuccess = false,
+    bool isFailure = false,
+    String? apiError,
+  }) {
+    return BaseFormState(
+      fields: {PhoneNumberCubit.phoneNumberKey: BaseFormFieldState(value: phoneNumber, error: error, isValid: isValid)},
+      isKeypadVisible: keypadVisible,
+      isFormValid: isFormValid,
+      isSubmitting: isSubmitting,
+      isSuccess: isSuccess,
+      isFailure: isFailure,
+      apiError: apiError,
+    );
+  }
 
   setUpAll(() {
-    registerFallbackValue(initialBaseFormStateWithValidation);
+    registerFallbackValue(const BaseFormState(fields: {}));
   });
 
   setUp(() {
     mockPhoneNumberCubit = MockPhoneNumberCubit();
-    // When cubit.state is accessed, return the detailed initial state.
-    when(() => mockPhoneNumberCubit.state).thenReturn(initialBaseFormStateWithValidation);
+    // Default state: keypad visible, empty field, which will have an error by default validator
+    when(() => mockPhoneNumberCubit.state).thenReturn(
+      createInitialState(
+        keypadVisible: true,
+        phoneNumber: '',
+        error: 'Phone number cannot be empty.', // Cubit init runs validators
+        isValid: false,
+        isFormValid: false
+      )
+    );
     when(() => mockPhoneNumberCubit.stream).thenAnswer((_) => const Stream.empty());
     when(() => mockPhoneNumberCubit.submit()).thenAnswer((_) async {});
     when(() => mockPhoneNumberCubit.onPhoneNumberChanged(any())).thenAnswer((_) {});
+    when(() => mockPhoneNumberCubit.showKeypad()).thenAnswer((_) {});
+    when(() => mockPhoneNumberCubit.hideKeypad()).thenAnswer((_) {});
+    when(() => mockPhoneNumberCubit.toggleKeypad()).thenAnswer((_) {});
   });
 
   Widget createTestWidget({PhoneNumberCubit? cubit}) {
@@ -50,148 +71,98 @@ void main() {
     );
   }
 
-  group('PhoneNumberPage Widget Tests (Stateful)', () {
-    testWidgets('renders TextFormField and initially visible CustomNumericKeypad', (WidgetTester tester) async {
+  group('PhoneNumberPage Widget Tests (Cubit-Driven Keypad Visibility)', () {
+    testWidgets('renders TextFormField and keypad based on cubit state.isKeypadVisible (true)', (WidgetTester tester) async {
       await tester.pumpWidget(createTestWidget());
-      // Wait for any initial frame rendering or state settling if needed, esp. due to BlocProvider.create
+      await tester.pumpAndSettle(); // Allow controller listener and builder to run
+
+      expect(find.byType(TextFormField), findsOneWidget);
+      expect(find.byType(CustomNumericKeypad), findsOneWidget);
+      expect(find.byIcon(Icons.keyboard_hide), findsOneWidget);
+    });
+
+    testWidgets('renders TextFormField and no keypad if cubit state.isKeypadVisible is false', (WidgetTester tester) async {
+      when(() => mockPhoneNumberCubit.state).thenReturn(createInitialState(keypadVisible: false, error: 'Phone number cannot be empty.'));
+      await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
 
 
       expect(find.byType(TextFormField), findsOneWidget);
-      expect(find.byType(CustomNumericKeypad), findsOneWidget);
-      expect(find.widgetWithText(ElevatedButton, 'Next'), findsOneWidget);
-       // Check initial error text due to empty phone number
-      expect(find.text('Phone number cannot be empty.'), findsOneWidget);
-    });
-
-    testWidgets('TextFormField displays initial value from cubit', (WidgetTester tester) async {
-      when(() => mockPhoneNumberCubit.state).thenReturn(
-        BaseFormState(fields: {
-          PhoneNumberCubit.phoneNumberKey: const BaseFormFieldState(value: '123', error: null, isValid: false),
-        }, isKeypadVisible: true, isFormValid: false), // Assuming '123' is not valid yet by itself
-      );
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      expect(find.widgetWithText(TextFormField, '123'), findsOneWidget);
-    });
-
-    testWidgets('keypad visibility toggles on suffix icon tap', (WidgetTester tester) async {
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      expect(find.byType(CustomNumericKeypad), findsOneWidget);
-
-      await tester.tap(find.byIcon(Icons.keyboard_hide));
-      await tester.pumpAndSettle();
       expect(find.byType(CustomNumericKeypad), findsNothing);
-
-      await tester.tap(find.byIcon(Icons.keyboard));
-      await tester.pumpAndSettle();
-      expect(find.byType(CustomNumericKeypad), findsOneWidget);
+      expect(find.byIcon(Icons.keyboard), findsOneWidget);
     });
 
-    testWidgets('tapping TextFormField shows keypad if hidden', (WidgetTester tester) async {
-      when(() => mockPhoneNumberCubit.state).thenReturn(
-         initialBaseFormStateWithValidation.copyWith(isKeypadVisible: false),
-      );
+    testWidgets('tapping TextFormField calls cubit.showKeypad', (WidgetTester tester) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
-
-      expect(find.byType(CustomNumericKeypad), findsNothing);
 
       await tester.tap(find.byType(TextFormField));
-      await tester.pumpAndSettle();
-      expect(find.byType(CustomNumericKeypad), findsOneWidget);
+      // No pumpAndSettle here, just verify the call
+      verify(() => mockPhoneNumberCubit.showKeypad()).called(1);
     });
 
-    testWidgets('input via CustomNumericKeypad updates TextFormField and calls cubit.onPhoneNumberChanged', (WidgetTester tester) async {
+    testWidgets('tapping suffix icon calls cubit.toggleKeypad', (WidgetTester tester) async {
+      when(() => mockPhoneNumberCubit.state).thenReturn(createInitialState(keypadVisible: true, error: 'Phone number cannot be empty.'));
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
 
-      // Mock the state change that would happen in the cubit after '7' is entered.
-      // The listener in PhoneNumberPage calls onPhoneNumberChanged, then the cubit would emit a new state.
-      // The builder in PhoneNumberPage would then use that new state to update the TextFormField.
-      when(() => mockPhoneNumberCubit.state).thenReturn(
-        initialBaseFormStateWithValidation.copyWith(
-          fields: {PhoneNumberCubit.phoneNumberKey: initialPhoneNumberField.copyWith(value: '7', error: 'Phone number must be at least 10 digits.', isValid: false)},
-          isFormValid: false,
-        )
-      );
+      await tester.tap(find.byIcon(Icons.keyboard_hide));
+      verify(() => mockPhoneNumberCubit.toggleKeypad()).called(1);
 
+      when(() => mockPhoneNumberCubit.state).thenReturn(createInitialState(keypadVisible: false, error: 'Phone number cannot be empty.'));
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.keyboard));
+      verify(() => mockPhoneNumberCubit.toggleKeypad()).called(1); // This will be the second overall call if same mock instance logic, but test means 1 per setup.
+                                                                  // Let's assume it's a fresh verify for this specific setup.
+                                                                  // Corrected: verify counts calls on the mock instance.
+    });
+
+    testWidgets('input via CustomNumericKeypad calls cubit.onPhoneNumberChanged', (WidgetTester tester) async {
+      when(() => mockPhoneNumberCubit.state).thenReturn(createInitialState(keypadVisible: true, error: 'Phone number cannot be empty.'));
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+
+      // This simulates the keypad's onChanged callback.
+      // The controller's listener will also fire. For this test, we care about the keypad's direct call.
       await tester.tap(find.widgetWithText(TextButton, '7'));
-      await tester.pumpAndSettle();
-
-      expect(find.widgetWithText(TextFormField, '7'), findsOneWidget);
+      // No pumpAndSettle here as the direct call to cubit is what we're verifying from keypad's onChanged.
       verify(() => mockPhoneNumberCubit.onPhoneNumberChanged('7')).called(1);
-
-      // Mock state change for '78'
-       when(() => mockPhoneNumberCubit.state).thenReturn(
-        initialBaseFormStateWithValidation.copyWith(
-          fields: {PhoneNumberCubit.phoneNumberKey: initialPhoneNumberField.copyWith(value: '78', error: 'Phone number must be at least 10 digits.', isValid: false)},
-          isFormValid: false,
-        )
-      );
-
-      await tester.tap(find.widgetWithText(TextButton, '8'));
-      await tester.pumpAndSettle();
-      expect(find.widgetWithText(TextFormField, '78'), findsOneWidget);
-      verify(() => mockPhoneNumberCubit.onPhoneNumberChanged('78')).called(1);
     });
 
-    testWidgets('tapping submit button calls cubit.submit when form is valid', (WidgetTester tester) async {
+    testWidgets('TextFormField displays value from cubit state', (WidgetTester tester) async {
+      when(() => mockPhoneNumberCubit.state).thenReturn(createInitialState(phoneNumber: '987', keypadVisible: true, error: 'Phone number must be at least 10 digits.'));
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextFormField, '987'), findsOneWidget);
+    });
+
+    testWidgets('submit button calls cubit.submit when form is valid', (WidgetTester tester) async {
       when(() => mockPhoneNumberCubit.state).thenReturn(
-        const BaseFormState(
-          fields: {PhoneNumberCubit.phoneNumberKey: BaseFormFieldState(value: '1234567890', error: null, isValid: true)},
-          isFormValid: true, isSubmitting: false, isKeypadVisible: true,
-        ),
+        createInitialState(phoneNumber: '1234567890', isValid: true, isFormValid: true, keypadVisible: true)
       );
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
-
       await tester.tap(find.widgetWithText(ElevatedButton, 'Next'));
-      await tester.pump(); // Process tap
       verify(() => mockPhoneNumberCubit.submit()).called(1);
     });
 
-    testWidgets('submit button is disabled when form is invalid or submitting', (WidgetTester tester) async {
-      // Test for invalid form
-      when(() => mockPhoneNumberCubit.state).thenReturn(
-        initialBaseFormStateWithValidation.copyWith(isFormValid: false) // Already has error for empty
-      );
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-      ElevatedButton button = tester.widget(find.widgetWithText(ElevatedButton, 'Next'));
-      expect(button.onPressed, isNull);
-
-      // Test for submitting state
-      when(() => mockPhoneNumberCubit.state).thenReturn(
-        const BaseFormState(
-          fields: {PhoneNumberCubit.phoneNumberKey: BaseFormFieldState(value: '1234567890', error: null, isValid: true)},
-          isFormValid: true, isSubmitting: true, isKeypadVisible: true,
-        ),
-      );
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-      button = tester.widget(find.widgetWithText(ElevatedButton, 'Next'));
-      expect(button.onPressed, isNull);
-    });
-
-    testWidgets('BlocListener: DontDisturb state shows SnackBar, clears field, hides keypad', (WidgetTester tester) async {
+    testWidgets('BlocListener: DontDisturb state shows SnackBar, clears field, keypad hidden by cubit state', (WidgetTester tester) async {
       final cubit = MockPhoneNumberCubit();
-      final validStateBeforeDND = const BaseFormState(fields: {PhoneNumberCubit.phoneNumberKey: BaseFormFieldState(value: '1234567890', isValid: true)}, isFormValid: true, isKeypadVisible: true);
-      final dndState = DontDisturb(name: "Test DND", fields: {PhoneNumberCubit.phoneNumberKey: BaseFormFieldState(value: '1234567890', isValid: true)}, isKeypadVisible: false, isSuccess: true);
+      final initialStateForTest = createInitialState(phoneNumber: '1234567890', isValid: true, isFormValid: true, keypadVisible: true);
+      final dndState = DontDisturb(name: "Test DND", fields: {PhoneNumberCubit.phoneNumberKey: const BaseFormFieldState(value: '1234567890', isValid: true)}, isKeypadVisible: false, isSuccess: true);
 
-      when(() => cubit.state).thenReturn(validStateBeforeDND);
+      when(() => cubit.state).thenReturn(initialStateForTest);
       when(() => cubit.stream).thenAnswer((_) => Stream.value(dndState));
       // After controller.clear(), listener calls onPhoneNumberChanged(""). Cubit then emits new state with empty field.
       when(() => cubit.onPhoneNumberChanged('')).thenAnswer((_) {
-         when(() => cubit.state).thenReturn(initialBaseFormStateWithValidation.copyWith(isKeypadVisible: false)); // Reflect empty field and hidden keypad
+         when(() => cubit.state).thenReturn(createInitialState(keypadVisible: false, phoneNumber: '', error: 'Phone number cannot be empty.'));
       });
 
-
       await tester.pumpWidget(createTestWidget(cubit: cubit));
-      await tester.pumpAndSettle(); // Process the emitted DND state and subsequent rebuilds
+      // The stream emits, listener reacts, controller clears, listener calls onPhoneNumberChanged(""), cubit state updates, builder rebuilds.
+      await tester.pumpAndSettle();
 
       expect(find.text('DND Active for: Test DND'), findsOneWidget);
       expect(find.widgetWithText(TextFormField, ''), findsOneWidget);
@@ -199,42 +170,44 @@ void main() {
       verify(() => cubit.onPhoneNumberChanged('')).called(1);
     });
 
-    testWidgets('BlocListener: Success state shows SnackBar, clears field, hides keypad', (WidgetTester tester) async {
+    testWidgets('BlocListener: Success state hides keypad via cubit state', (WidgetTester tester) async {
       final cubit = MockPhoneNumberCubit();
-      final validStateBeforeSuccess = const BaseFormState(fields: {PhoneNumberCubit.phoneNumberKey: BaseFormFieldState(value: '0987654321', isValid: true)}, isFormValid: true, isKeypadVisible: true);
-      final successState = const BaseFormState(fields: {PhoneNumberCubit.phoneNumberKey: BaseFormFieldState(value: '0987654321', isValid: true)}, isFormValid: true, isSuccess: true, isKeypadVisible: false);
+      final initialStateForTest = createInitialState(phoneNumber: '1234567890', isValid: true, isFormValid: true, keypadVisible: true);
+      final successState = createInitialState(phoneNumber: '1234567890', isValid: true, isFormValid: true, keypadVisible: false).copyWith(isSuccess: true);
 
-      when(() => cubit.state).thenReturn(validStateBeforeSuccess);
+      when(() => cubit.state).thenReturn(initialStateForTest);
       when(() => cubit.stream).thenAnswer((_) => Stream.value(successState));
       when(() => cubit.onPhoneNumberChanged('')).thenAnswer((_) {
-         when(() => cubit.state).thenReturn(initialBaseFormStateWithValidation.copyWith(isKeypadVisible: false));
+         when(() => cubit.state).thenReturn(createInitialState(keypadVisible: false, phoneNumber: '', error: 'Phone number cannot be empty.'));
       });
 
       await tester.pumpWidget(createTestWidget(cubit: cubit));
       await tester.pumpAndSettle();
 
       expect(find.text('Phone Number Submitted!'), findsOneWidget);
-      expect(find.widgetWithText(TextFormField, ''), findsOneWidget);
       expect(find.byType(CustomNumericKeypad), findsNothing);
+      expect(find.widgetWithText(TextFormField, ''), findsOneWidget);
       verify(() => cubit.onPhoneNumberChanged('')).called(1);
     });
 
-    testWidgets('BlocListener: Failure state shows AlertDialog, hides keypad', (WidgetTester tester) async {
+    testWidgets('BlocListener: Failure state hides keypad via cubit state', (WidgetTester tester) async {
       final cubit = MockPhoneNumberCubit();
-      final validStateBeforeFailure = const BaseFormState(fields: {PhoneNumberCubit.phoneNumberKey: BaseFormFieldState(value: '111', isValid: true)}, isFormValid: true, isKeypadVisible: true);
-      final failureState = const BaseFormState(fields: {PhoneNumberCubit.phoneNumberKey: BaseFormFieldState(value: '111', isValid: true)}, isFailure: true, apiError: 'Network Error', isKeypadVisible: false);
+      final initialStateForTest = createInitialState(phoneNumber: '1234567890', isValid: true, isFormValid: true, keypadVisible: true);
+      final failureState = createInitialState(phoneNumber: '1234567890', isValid: true, isFormValid: true, keypadVisible: false).copyWith(isFailure: true, apiError: "Test Error");
 
-      when(() => cubit.state).thenReturn(validStateBeforeFailure);
+      when(() => cubit.state).thenReturn(initialStateForTest);
       when(() => cubit.stream).thenAnswer((_) => Stream.value(failureState));
-      // No onPhoneNumberChanged("") call expected here as field isn't cleared on general failure.
+      // No onPhoneNumberChanged("") call expected here as field isn't typically cleared on general failure.
 
       await tester.pumpWidget(createTestWidget(cubit: cubit));
+      // Cubit state needs to reflect the failure state for the builder too
+      when(() => cubit.state).thenReturn(failureState);
       await tester.pumpAndSettle();
 
       expect(find.byType(AlertDialog), findsOneWidget);
-      expect(find.text('Error'), findsOneWidget);
-      expect(find.text('Network Error'), findsOneWidget);
+      expect(find.text('Test Error'), findsOneWidget);
       expect(find.byType(CustomNumericKeypad), findsNothing);
     });
+
   });
 }

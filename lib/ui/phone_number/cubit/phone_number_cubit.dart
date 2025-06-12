@@ -8,8 +8,8 @@ class PhoneNumberCubit extends BaseFormCubit {
   PhoneNumberCubit() : super() {
     initializeFormFields({
       phoneNumberKey: const BaseFormFieldState(value: '', isValid: false),
-      // BaseFormState defaults isKeypadVisible to true, which is fine for initial state.
     });
+    // BaseFormState defaults isKeypadVisible to true.
   }
 
   @override
@@ -33,15 +33,32 @@ class PhoneNumberCubit extends BaseFormCubit {
       };
 
   void onPhoneNumberChanged(String value) {
-    // When phone number is changed, we might want to ensure keypad stays visible
-    // if it was already visible. Or, BaseFormCubit's updateField just preserves current state.
-    // If updateField is called, the current state (including isKeypadVisible) is preserved by default
-    // unless explicitly changed in copyWith.
-    // If the user starts typing, keypad should be visible. AppPhoneFieldWithKeypad handles this.
     updateField(phoneNumberKey, value);
+    // If user starts typing, ensure keypad is visible.
+    // This might be redundant if UI calls showKeypad on field tap,
+    // but can be a safeguard.
+    if (value.isNotEmpty && !state.isKeypadVisible) {
+      showKeypad();
+    }
   }
 
-  // REMOVED: showKeypad() and hideKeypad() methods
+  // --- Re-added Keypad Methods ---
+  void showKeypad() {
+    if (!state.isKeypadVisible) {
+      emit(state.copyWith(isKeypadVisible: true));
+    }
+  }
+
+  void hideKeypad() {
+    if (state.isKeypadVisible) {
+      emit(state.copyWith(isKeypadVisible: false));
+    }
+  }
+
+  void toggleKeypad() {
+    emit(state.copyWith(isKeypadVisible: !state.isKeypadVisible));
+  }
+  // --- End Re-added Keypad Methods ---
 
   @override
   Future<void> submitForm(Map<String, dynamic> values) async {

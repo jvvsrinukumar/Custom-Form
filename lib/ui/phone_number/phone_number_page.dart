@@ -14,75 +14,52 @@ class PhoneNumberPage extends StatefulWidget {
 
 class _PhoneNumberPageState extends State<PhoneNumberPage> {
   late TextEditingController _phoneNumberController;
-  // Keypad visibility is now managed by this page's state.
-  // The cubit's isKeypadVisible might still be used to inform initial state or if cubit needs to hide it.
-  bool _isKeypadLocallyVisible = true;
+  // REMOVED: _isKeypadLocallyVisible state variable. Visibility is now driven by cubit state.
 
   @override
   void initState() {
     super.initState();
-    // Initialize controller. Cubit might provide initial value later via BlocListener or initial state.
     _phoneNumberController = TextEditingController();
 
-    // Add listener to sync controller changes TO the cubit
+    // Note: context.read<PhoneNumberCubit>() here would be problematic if BlocProvider is in the same build method.
+    // Initial text will be set by BlocConsumer's builder for the first time.
+    // If cubit needs to be accessed for initial setup not tied to build context (e.g. from arguments),
+    // consider passing cubit instance or using BlocProvider.of outside build if structure allows.
+
     _phoneNumberController.addListener(() {
-      // Ensure context is available and cubit is accessible.
-      // This is safe as listener is tied to controller's lifecycle, which is tied to this state.
       if (mounted) {
+        // It's important that this context can find PhoneNumberCubit.
+        // If BlocProvider is in this widget's build method, this listener's context might be an issue
+        // when called BEFORE the first build completes.
+        // However, listeners are typically called after initial build / user interaction.
         final cubit = context.read<PhoneNumberCubit>();
-        // Only update cubit if text actually differs from cubit's state to avoid loops
-        if (cubit.state.fields[PhoneNumberCubit.phoneNumberKey]?.value != _phoneNumberController.text) {
+        final currentCubitText = cubit.state.fields[PhoneNumberCubit.phoneNumberKey]?.value ?? '';
+        if (currentCubitText != _phoneNumberController.text) {
           cubit.onPhoneNumberChanged(_phoneNumberController.text);
         }
       }
     });
-
-    // Set initial text if cubit already has a value (e.g. on page revisit)
-    // This needs to be done carefully, typically after the first frame or via a listener.
-    // For simplicity, we'll rely on BlocConsumer's builder to set initial text.
-    // Or, if cubit is available immediately (which it is in BlocProvider's create):
-    // final initialCubitState = context.read<PhoneNumberCubit>().state;
-    // _phoneNumberController.text = initialCubitState.fields[PhoneNumberCubit.phoneNumberKey]?.value ?? '';
-    //
-    // Deferring this to BlocProvider's create or first build via BlocBuilder.
   }
 
   @override
   void dispose() {
-    _phoneNumberController.dispose(); // Dispose controller
+    _phoneNumberController.dispose();
     super.dispose();
   }
 
-  void _toggleKeypadVisibility() {
-    setState(() {
-      _isKeypadLocallyVisible = !_isKeypadLocallyVisible;
-    });
-    // Optionally, inform cubit if it needs to know about UI-driven keypad changes
-    // final cubit = context.read<PhoneNumberCubit>();
-    // if (_isKeypadLocallyVisible) cubit.showKeypad(); else cubit.hideKeypad();
-    // Since cubit no longer has show/hide keypad, this part is commented out.
-  }
-
-  void _showKeypad() {
-    if (!_isKeypadLocallyVisible) {
-      setState(() {
-        _isKeypadLocallyVisible = true;
-      });
-    }
-  }
-
+  // REMOVED: _toggleKeypadVisibility and _showKeypad methods that used local setState.
+  // UI interactions will now call cubit methods.
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (blocContext) { // Renamed to blocContext to avoid clash if needed, though not here.
+      create: (context) {
         final cubit = PhoneNumberCubit();
-        // Set initial controller text from cubit's initial state after cubit is created.
-        // This ensures controller has the value when the TextFormField is first built.
-        final initialValue = cubit.state.fields[PhoneNumberCubit.phoneNumberKey]?.value as String? ?? '';
-        _phoneNumberController.text = initialValue;
-        // And potentially sync keypad visibility from cubit's initial state
-        _isKeypadLocallyVisible = cubit.state.isKeypadVisible;
+        // Initial text from cubit's state can be set here if controller is available,
+        // but _phoneNumberController is an instance variable.
+        // It's generally safer to let the BlocBuilder handle initial text setting.
+        // Or, ensure cubit is created before controller is initialized if direct sync is needed in create.
+        // For this pattern, builder will handle it.
         return cubit;
       },
       child: Scaffold(
@@ -90,31 +67,26 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
         body: BlocConsumer<PhoneNumberCubit, BaseFormState>(
           listenWhen: (prev, curr) {
             if (curr is DontDisturb) return true;
-            // Also listen if keypad visibility from cubit changes, to sync local state
-            if (prev.isKeypadVisible != curr.isKeypadVisible) return true;
+            // No need to listen for prev.isKeypadVisible != curr.isKeypadVisible for local setState,
+            // as builder will react directly to curr.isKeypadVisible.
             return prev.isSubmitting != curr.isSubmitting ||
                 prev.isSuccess != curr.isSuccess ||
                 prev.isFailure != curr.isFailure ||
                 prev.apiError != curr.apiError;
           },
           listener: (context, state) {
-            // Sync local keypad visibility if cubit dictates it (e.g. after submit)
-            if (_isKeypadLocallyVisible != state.isKeypadVisible) {
-                setState(() {
-                  _isKeypadLocallyVisible = state.isKeypadVisible;
-                });
-            }
+            // Local keypad visibility sync removed.
 
             if (state is DontDisturb) {
               ScaffoldMessenger.of(context)
                 ..hideCurrentSnackBar()
                 ..showSnackBar(SnackBar(content: Text('DND Active for: ${state.name}')));
-              _phoneNumberController.clear(); // Clear controller, listener will inform cubit
+              _phoneNumberController.clear();
             } else if (state.isSuccess) {
               ScaffoldMessenger.of(context)
                 ..hideCurrentSnackBar()
                 ..showSnackBar(const SnackBar(content: Text('Phone Number Submitted!')));
-              _phoneNumberController.clear(); // Clear controller
+              _phoneNumberController.clear();
             } else if (state.isFailure && state.apiError != null) {
               showDialog(
                 context: context,
@@ -131,13 +103,9 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
           builder: (context, state) {
             final cubit = context.read<PhoneNumberCubit>();
 
-            // Sync controller text if cubit's state changed it
             final cubitPhoneNumber = state.fields[PhoneNumberCubit.phoneNumberKey]?.value as String? ?? '';
             if (_phoneNumberController.text != cubitPhoneNumber) {
               _phoneNumberController.text = cubitPhoneNumber;
-              // Check if the controller is already focused to prevent moving cursor unnecessarily
-              // if the change came from the controller's own listener.
-              // However, if change comes from cubit (e.g. after submit), this is fine.
               _phoneNumberController.selection = TextSelection.fromPosition(
                 TextPosition(offset: _phoneNumberController.text.length),
               );
@@ -153,7 +121,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                     children: [
                       TextFormField(
                         controller: _phoneNumberController,
-                        readOnly: true, // Input via custom keypad
+                        readOnly: true,
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontSize: 20),
                         decoration: InputDecoration(
@@ -161,11 +129,11 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                           errorText: state.fields[PhoneNumberCubit.phoneNumberKey]?.error,
                           border: const OutlineInputBorder(),
                           suffixIcon: IconButton(
-                            icon: Icon(_isKeypadLocallyVisible ? Icons.keyboard_hide : Icons.keyboard),
-                            onPressed: _toggleKeypadVisibility,
+                            icon: Icon(state.isKeypadVisible ? Icons.keyboard_hide : Icons.keyboard),
+                            onPressed: () => cubit.toggleKeypad(),
                           ),
                         ),
-                        onTap: _showKeypad, // Show keypad when field is tapped
+                        onTap: () => cubit.showKeypad(),
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton(
@@ -175,13 +143,11 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                             ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                             : const Text('Next', style: TextStyle(fontSize: 18)),
                       ),
-                      // Using Spacer to push keypad to bottom if it were in a Column,
-                      // but since keypad is in Stack, this primarily just takes up remaining space in the Column.
                       const Spacer(),
                     ],
                   ),
                 ),
-                if (_isKeypadLocallyVisible)
+                if (state.isKeypadVisible)
                   Positioned(
                     left: 0,
                     right: 0,
@@ -192,15 +158,12 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                       child: SafeArea(
                         top: false,
                         child: CustomNumericKeypad(
-                          controller: _phoneNumberController, // Controller is managed by this page
-                          // onChanged is not strictly needed if controller listener is robust.
-                          // If provided, it would also call cubit.onPhoneNumberChanged.
-                          // The controller's listener (_phoneNumberController.addListener) handles this.
+                          controller: _phoneNumberController,
+                          onChanged: (text) => cubit.onPhoneNumberChanged(text),
                         ),
                       ),
                     ),
                   ),
-                // Global loader
                 if (state.isSubmitting && state.isFormValid)
                   Positioned.fill(
                     child: Container(
