@@ -1,4 +1,5 @@
 import 'package:custom_form/ui/phone_number/cubit/phone_number_cubit.dart';
+import 'package:custom_form/ui/phone_number/cubit/phone_number_state.dart'; // Import DontDisturb
 import 'package:custom_form/widgets/custom_numeric_keypad.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -18,26 +19,30 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
   void initState() {
     super.initState();
     _phoneNumberController = TextEditingController();
-    _phoneNumberController.addListener(_onPhoneNumberChanged);
+    // Listener calls cubit.onPhoneNumberChanged, not cubit.updateField directly
+    _phoneNumberController.addListener(_onPhoneNumberControllerChanged);
   }
 
   @override
   void dispose() {
-    _phoneNumberController.removeListener(_onPhoneNumberChanged);
+    _phoneNumberController.removeListener(_onPhoneNumberControllerChanged);
     _phoneNumberController.dispose();
     super.dispose();
   }
 
-  void _onPhoneNumberChanged() {
+  // Renamed to avoid confusion with cubit's method if any existed with same name
+  void _onPhoneNumberControllerChanged() {
     if (!mounted) return;
+    // Call the cubit's method for handling UI changes
     context
         .read<PhoneNumberCubit>()
-        .onPhoneNumberChangedByUI(_phoneNumberController.text);
+        .onPhoneNumberChanged(_phoneNumberController.text);
   }
 
   void _clearPhoneNumber(BuildContext context) {
     _phoneNumberController.clear();
-    // The listener will update the cubit as well
+    // Cubit update will be handled by the listener _onPhoneNumberControllerChanged
+    // or directly if preferred: context.read<PhoneNumberCubit>().onPhoneNumberChanged("");
   }
 
   @override
@@ -47,13 +52,23 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
       child: Scaffold(
         appBar: AppBar(title: const Text('Enter Phone Number')),
         body: BlocConsumer<PhoneNumberCubit, BaseFormState>(
-          listenWhen: (prev, curr) =>
-              prev.isSubmitting != curr.isSubmitting ||
-              prev.isSuccess != curr.isSuccess ||
-              prev.isFailure != curr.isFailure ||
-              prev.apiError != curr.apiError,
+          listenWhen: (prev, curr) {
+            // Listen for DontDisturb state specifically, or general success/failure
+            if (curr is DontDisturb) return true;
+            return prev.isSubmitting != curr.isSubmitting ||
+                prev.isSuccess != curr.isSuccess ||
+                prev.isFailure != curr.isFailure ||
+                prev.apiError != curr.apiError;
+          },
           listener: (context, state) {
-            if (state.isSuccess) {
+            if (state is DontDisturb) {
+              ScaffoldMessenger.of(context)
+                ..hideCurrentSnackBar()
+                ..showSnackBar(
+                  SnackBar(content: Text('DND Active for: ${state.name}')),
+                );
+              _clearPhoneNumber(context);
+            } else if (state.isSuccess) { // Generic success (not DND)
               ScaffoldMessenger.of(context)
                 ..hideCurrentSnackBar()
                 ..showSnackBar(
@@ -78,32 +93,33 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
           },
           builder: (context, state) {
             final cubit = context.read<PhoneNumberCubit>();
+            // Sync controller with cubit state if they diverge
+            // This is important if cubit modifies the number (e.g. formatting)
             final expectedText =
-                state.fields[PhoneNumberCubit.phoneNumberKey]?.value ?? '';
+                state.fields[PhoneNumberCubit.phoneNumberKey]?.value as String? ?? '';
             if (_phoneNumberController.text != expectedText) {
+              // To prevent listener loop, only update if truly different
+              // and also consider if the cubit should be the single source of truth for the text field
+              // For now, simple update:
               _phoneNumberController.text = expectedText;
               _phoneNumberController.selection = TextSelection.fromPosition(
                 TextPosition(offset: _phoneNumberController.text.length),
               );
             }
+
             return Stack(
               children: [
-                // Main content with padding at bottom for keypad
                 Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       BlocBuilder<PhoneNumberCubit, BaseFormState>(
+                        // buildWhen can be more specific if needed
                         buildWhen: (prev, curr) =>
-                            prev.fields[PhoneNumberCubit.phoneNumberKey]
-                                    ?.value !=
-                                curr.fields[PhoneNumberCubit.phoneNumberKey]
-                                    ?.value ||
-                            prev.fields[PhoneNumberCubit.phoneNumberKey]
-                                    ?.error !=
-                                curr.fields[PhoneNumberCubit.phoneNumberKey]
-                                    ?.error,
+                            prev.fields[PhoneNumberCubit.phoneNumberKey] !=
+                                curr.fields[PhoneNumberCubit.phoneNumberKey] ||
+                            prev.isKeypadVisible != curr.isKeypadVisible, // Rebuild on keypad visibility change too
                         builder: (context, fieldState) {
                           return TextFormField(
                             controller: _phoneNumberController,
@@ -115,12 +131,11 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                                   ?.error,
                               border: const OutlineInputBorder(),
                             ),
-                            keyboardType:
-                                TextInputType.none, // Prevent default keyboard
+                            keyboardType: TextInputType.none,
                             textAlign: TextAlign.center,
                             style: const TextStyle(fontSize: 20),
-                            maxLength: 10,
-                            readOnly: true, // Only editable via keypad
+                            // maxLength: 15, // Max length from cubit validator - REMOVED
+                            readOnly: true,
                             onTap: () {
                               cubit.showKeypad();
                             },
@@ -154,11 +169,10 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                           );
                         },
                       ),
-                      const SizedBox(height: 100),
+                      const SizedBox(height: 100), // Space for keypad if visible
                     ],
                   ),
                 ),
-                // Keypad aligned bottom and on top of all other widgets
                 if (state.isKeypadVisible)
                   Positioned(
                     left: 0,
@@ -166,16 +180,17 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                     bottom: 0,
                     child: Material(
                       elevation: 8,
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.surface, // Use theme color
                       child: SafeArea(
                         top: false,
                         child: CustomNumericKeypad(
                           controller: _phoneNumberController,
-                          maxLength: 10,
+                          // maxLength: 15, // Match with TextFormField if it has one - REMOVED
                           onChanged: (text) {
+                            // Call the cubit's method for handling UI changes from keypad
                             context
                                 .read<PhoneNumberCubit>()
-                                .onPhoneNumberChangedByUI(text);
+                                .onPhoneNumberChanged(text);
                           },
                         ),
                       ),

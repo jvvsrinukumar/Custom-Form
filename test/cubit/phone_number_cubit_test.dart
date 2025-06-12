@@ -1,6 +1,7 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:custom_form/core/cubits/base_form/cubit/base_form_state.dart';
 import 'package:custom_form/ui/phone_number/cubit/phone_number_cubit.dart';
+import 'package:custom_form/ui/phone_number/cubit/phone_number_state.dart'; // For DontDisturb
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -11,140 +12,190 @@ void main() {
       phoneNumberCubit = PhoneNumberCubit();
     });
 
-    tearDown(() {
-      phoneNumberCubit.close();
+    test('initial state is BaseFormState with phoneNumber field initialized', () {
+      expect(phoneNumberCubit.state, isA<BaseFormState>());
+      // From BaseFormCubit constructor, fields are initialized.
+      // Then PhoneNumberCubit constructor calls initializeFormFields.
+      // The default BaseFormFieldState from initializeFormFields will have value: '', isValid: false (due to validator)
+      final initialFieldState = phoneNumberCubit.state.fields[PhoneNumberCubit.phoneNumberKey];
+      expect(initialFieldState?.value, '');
+      // The validator for empty string returns "Phone number cannot be empty."
+      // So isValid should be false, and error should be present after initialization if validators run on init.
+      // BaseFormCubit runs validateAllFields which runs validators after initializeFormFields.
+      expect(initialFieldState?.isValid, false);
+      expect(initialFieldState?.error, 'Phone number cannot be empty.');
+      expect(phoneNumberCubit.state.isFormValid, false); // Form is not valid due to the error
+      expect(phoneNumberCubit.state.isKeypadVisible, true); // Default from BaseFormState or Cubit's choice
     });
 
-    test('initial state is correct', () {
-      expect(
-        phoneNumberCubit.state,
-        const BaseFormState(
-          fields: {
-            PhoneNumberCubit.phoneNumberKey: BaseFormFieldState(value: '', initialValue: ''),
-          },
-          isFormValid: false, // Initially false due to empty phone number
-          isKeypadVisible: true, // Add this
-        ),
-      );
-    });
-
-    group('Phone Number Validation', () {
+    group('onPhoneNumberChanged (via updateField)', () {
       blocTest<PhoneNumberCubit, BaseFormState>(
-        'emits error when phone number is empty',
+        'emits state with updated phone number and no error for valid input',
         build: () => phoneNumberCubit,
-        act: (cubit) => cubit.updateField(PhoneNumberCubit.phoneNumberKey, ''),
-        expect: () => [
-          isA<BaseFormState>()
-              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.value, 'value', '')
-              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.error, 'error', 'Phone number is required')
-              .having((s) => s.isFormValid, 'isFormValid', false)
-              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
-        ],
-      );
-
-      blocTest<PhoneNumberCubit, BaseFormState>(
-        'emits error when phone number is too short',
-        build: () => phoneNumberCubit,
-        act: (cubit) => cubit.updateField(PhoneNumberCubit.phoneNumberKey, '12345'),
-        expect: () => [
-          isA<BaseFormState>()
-              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.value, 'value', '12345')
-              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.error, 'error', 'Enter a valid 10-digit phone number')
-              .having((s) => s.isFormValid, 'isFormValid', false)
-              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
-        ],
-      );
-
-      blocTest<PhoneNumberCubit, BaseFormState>(
-        'emits error when phone number contains non-digits',
-        build: () => phoneNumberCubit,
-        act: (cubit) => cubit.updateField(PhoneNumberCubit.phoneNumberKey, '123456789a'),
-        expect: () => [
-          isA<BaseFormState>()
-              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.value, 'value', '123456789a')
-              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.error, 'error', 'Enter a valid 10-digit phone number')
-              .having((s) => s.isFormValid, 'isFormValid', false)
-              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
-        ],
-      );
-
-      blocTest<PhoneNumberCubit, BaseFormState>(
-        'emits error when phone number is too long',
-        build: () => phoneNumberCubit,
-        act: (cubit) => cubit.updateField(PhoneNumberCubit.phoneNumberKey, '12345678901'),
-        expect: () => [
-          isA<BaseFormState>()
-              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.value, 'value', '12345678901')
-              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.error, 'error', 'Enter a valid 10-digit phone number')
-              .having((s) => s.isFormValid, 'isFormValid', false)
-              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
-        ],
-      );
-
-      blocTest<PhoneNumberCubit, BaseFormState>(
-        'emits no error and sets isFormValid to true for a valid phone number',
-        build: () => phoneNumberCubit,
-        act: (cubit) => cubit.updateField(PhoneNumberCubit.phoneNumberKey, '1234567890'),
+        act: (cubit) => cubit.onPhoneNumberChanged('1234567890'),
         expect: () => [
           isA<BaseFormState>()
               .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.value, 'value', '1234567890')
-              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.error, 'error', null)
-              .having((s) => s.isFormValid, 'isFormValid', true)
-              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.error, 'error', isNull)
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.isValid, 'isValid', true)
+              .having((s) => s.isFormValid, 'isFormValid', true),
+        ],
+      );
+
+      blocTest<PhoneNumberCubit, BaseFormState>(
+        'emits state with error for empty phone number',
+        build: () => phoneNumberCubit,
+        // Need to set a non-empty value first so change to empty is detected and validator runs
+        seed: () => phoneNumberCubit.state.copyWith(
+          fields: {
+            PhoneNumberCubit.phoneNumberKey: const BaseFormFieldState(value: '123', error: null, isValid: false)
+          },
+          isFormValid: false
+        ),
+        act: (cubit) => cubit.onPhoneNumberChanged(''),
+        expect: () => [
+          isA<BaseFormState>()
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.value, 'value', '')
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.error, 'error', 'Phone number cannot be empty.')
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.isValid, 'isValid', false)
+              .having((s) => s.isFormValid, 'isFormValid', false),
+        ],
+      );
+
+      blocTest<PhoneNumberCubit, BaseFormState>(
+        'emits state with error for short phone number',
+        build: () => phoneNumberCubit,
+        act: (cubit) => cubit.onPhoneNumberChanged('123'),
+        expect: () => [
+          isA<BaseFormState>()
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.value, 'value', '123')
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.error, 'error', 'Phone number must be at least 10 digits.')
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.isValid, 'isValid', false)
+              .having((s) => s.isFormValid, 'isFormValid', false),
+        ],
+      );
+
+      blocTest<PhoneNumberCubit, BaseFormState>(
+        'emits state with error for phone number with invalid characters (non-digit)',
+        // The validator used is r'^[0-9]{10,15}$'
+        // "Invalid characters or format in phone number."
+        build: () => phoneNumberCubit,
+        act: (cubit) => cubit.onPhoneNumberChanged('123456789x'),
+        expect: () => [
+          isA<BaseFormState>()
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.value, 'value', '123456789x')
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.error, 'error', 'Invalid characters or format in phone number.')
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.isValid, 'isValid', false)
+              .having((s) => s.isFormValid, 'isFormValid', false),
+        ],
+      );
+
+       blocTest<PhoneNumberCubit, BaseFormState>(
+        'emits state with error for phone number too long',
+        build: () => phoneNumberCubit,
+        act: (cubit) => cubit.onPhoneNumberChanged('1234567890123456'), // 16 digits
+        expect: () => [
+          isA<BaseFormState>()
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.value, 'value', '1234567890123456')
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.error, 'error', 'Phone number is too long (max 15 digits).')
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.isValid, 'isValid', false)
+              .having((s) => s.isFormValid, 'isFormValid', false),
         ],
       );
     });
 
-    group('Form Submission', () {
+    group('submit (calling submitForm)', () {
       blocTest<PhoneNumberCubit, BaseFormState>(
-        'emits [isSubmitting: true, isSuccess: true] when submit is called with valid data',
-        build: () {
-          // Pre-fill with valid data
-          final cubit = PhoneNumberCubit();
-          cubit.updateField(PhoneNumberCubit.phoneNumberKey, '1234567890');
-          return cubit;
+        'emits submitting then DontDisturb state for DND number',
+        build: () => phoneNumberCubit,
+        act: (cubit) async {
+          cubit.onPhoneNumberChanged('1234567890');
+          // await Future.delayed(Duration.zero); // blocTest handles async act
+          await cubit.submit();
         },
-        act: (cubit) => cubit.submit(),
-        // Expect multiple states: first with updated errors (none here), then submitting, then success.
         expect: () => [
-          isA<BaseFormState>() // Validation pass before submission
-              .having((s) => s.isSubmitting, 'isSubmitting before', false)
-              .having((s) => s.isFormValid, 'isFormValid before', true)
-              .having((s) => s.isKeypadVisible, 'isKeypadVisible before', true),
-          isA<BaseFormState>() // isSubmitting = true
-              .having((s) => s.isSubmitting, 'isSubmitting during', true)
-              .having((s) => s.isSuccess, 'isSuccess during', false)
-              .having((s) => s.isFailure, 'isFailure during', false)
-              .having((s) => s.isKeypadVisible, 'isKeypadVisible during', true),
-          isA<BaseFormState>() // isSuccess = true
-              .having((s) => s.isSubmitting, 'isSubmitting after', false)
-              .having((s) => s.isSuccess, 'isSuccess after', true)
-              .having((s) => s.isKeypadVisible, 'isKeypadVisible after', true),
+          // State after onPhoneNumberChanged
+          isA<BaseFormState>()
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.value, 'value', '1234567890')
+              .having((s) => s.isFormValid, 'isFormValid', true),
+          // State when BaseFormCubit.submit() sets isSubmitting = true (before calling submitForm)
+          isA<BaseFormState>()
+              .having((s) => s.isSubmitting, 'isSubmitting', true)
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.isValid, 'isValid', true),
+          // Final DontDisturb state from submitForm
+          isA<DontDisturb>()
+              .having((s) => s.name, 'name', 'Test User DND')
+              .having((s) => s.isSubmitting, 'isSubmitting', false)
+              .having((s) => s.isSuccess, 'isSuccess', true)
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.value, 'value', '1234567890'),
         ],
       );
 
       blocTest<PhoneNumberCubit, BaseFormState>(
-        'emits [isFailure: true] when submit is called with invalid data',
-        build: () => phoneNumberCubit, // Starts with empty (invalid) phone number
-        act: (cubit) => cubit.submit(),
+        'emits submitting then success for valid non-DND number',
+        build: () => phoneNumberCubit,
+        act: (cubit) async {
+          cubit.onPhoneNumberChanged('0987654321');
+          await cubit.submit();
+        },
         expect: () => [
           isA<BaseFormState>()
-              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.error, 'error', 'Phone number is required')
-              .having((s) => s.isFailure, 'isFailure', true)
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.value, 'value', '0987654321')
+              .having((s) => s.isFormValid, 'isFormValid', true),
+          isA<BaseFormState>()
+              .having((s) => s.isSubmitting, 'isSubmitting', true),
+          isA<BaseFormState>()
               .having((s) => s.isSubmitting, 'isSubmitting', false)
-              .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
+              .having((s) => s.isSuccess, 'isSuccess', true),
+        ],
+      );
+
+      blocTest<PhoneNumberCubit, BaseFormState>(
+        'emits submitting then failure for specific blocked number',
+        build: () => phoneNumberCubit,
+        act: (cubit) async {
+          cubit.onPhoneNumberChanged('0000000000');
+          await cubit.submit();
+        },
+        expect: () => [
+          isA<BaseFormState>()
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.value, 'value', '0000000000')
+              .having((s) => s.isFormValid, 'isFormValid', true),
+          isA<BaseFormState>()
+              .having((s) => s.isSubmitting, 'isSubmitting', true),
+          isA<BaseFormState>()
+              .having((s) => s.isSubmitting, 'isSubmitting', false)
+              .having((s) => s.isFailure, 'isFailure', true)
+              .having((s) => s.apiError, 'apiError', "This phone number is blocked."),
+        ],
+      );
+
+      blocTest<PhoneNumberCubit, BaseFormState>(
+        'emits validation failure and does not call submitForm if form is invalid',
+        build: () => phoneNumberCubit,
+        act: (cubit) async {
+          cubit.onPhoneNumberChanged('123');
+          await cubit.submit();
+        },
+        expect: () => [
+           isA<BaseFormState>()
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.value, 'value', '123')
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.error, 'error', 'Phone number must be at least 10 digits.')
+              .having((s) => s.isFormValid, 'isFormValid', false),
+          isA<BaseFormState>()
+              .having((s) => s.fields[PhoneNumberCubit.phoneNumberKey]?.error, 'error', 'Phone number must be at least 10 digits.')
+              .having((s) => s.isFailure, 'isFailure', true)
+              .having((s) => s.isSubmitting, 'isSubmitting', false),
         ],
       );
     });
 
     group('Keypad Visibility', () {
       blocTest<PhoneNumberCubit, BaseFormState>(
-        'showKeypad emits isKeypadVisible: true when it was false',
+        'showKeypad sets isKeypadVisible to true',
         build: () {
-          final cubit = PhoneNumberCubit();
-          // Manually emit a state where keypad is false to test transition
-          cubit.emit(cubit.state.copyWith(isKeypadVisible: false));
-          return cubit;
+          phoneNumberCubit.emit(phoneNumberCubit.state.copyWith(isKeypadVisible: false));
+          return phoneNumberCubit;
         },
         act: (cubit) => cubit.showKeypad(),
         expect: () => [
@@ -153,15 +204,8 @@ void main() {
       );
 
       blocTest<PhoneNumberCubit, BaseFormState>(
-        'showKeypad does not emit new state if isKeypadVisible is already true',
-        build: () => phoneNumberCubit, // Initial state has isKeypadVisible = true
-        act: (cubit) => cubit.showKeypad(),
-        expect: () => [], // No new state emitted
-      );
-
-      blocTest<PhoneNumberCubit, BaseFormState>(
-        'hideKeypad emits isKeypadVisible: false when it was true',
-        build: () => phoneNumberCubit, // Initial state has isKeypadVisible = true
+        'hideKeypad sets isKeypadVisible to false',
+        build: () => phoneNumberCubit,
         act: (cubit) => cubit.hideKeypad(),
         expect: () => [
           isA<BaseFormState>().having((s) => s.isKeypadVisible, 'isKeypadVisible', false),
@@ -169,155 +213,21 @@ void main() {
       );
 
       blocTest<PhoneNumberCubit, BaseFormState>(
-        'hideKeypad does not emit new state if isKeypadVisible is already false',
+        'showKeypad does not emit if already visible',
+        build: () => phoneNumberCubit,
+        act: (cubit) => cubit.showKeypad(),
+        expect: () => [],
+      );
+
+      blocTest<PhoneNumberCubit, BaseFormState>(
+        'hideKeypad does not emit if already hidden',
         build: () {
-          final cubit = PhoneNumberCubit();
-          cubit.emit(cubit.state.copyWith(isKeypadVisible: false));
-          return cubit;
+           phoneNumberCubit.emit(phoneNumberCubit.state.copyWith(isKeypadVisible: false));
+           return phoneNumberCubit;
         },
         act: (cubit) => cubit.hideKeypad(),
-        expect: () => [], // No new state emitted
+        expect: () => [],
       );
     });
-
-  group('Digit Manipulation', () {
-    const String phoneNumberKey = PhoneNumberCubit.phoneNumberKey;
-
-    blocTest<PhoneNumberCubit, BaseFormState>(
-      'appendDigit adds a digit to the phone number',
-      build: () => PhoneNumberCubit(),
-      act: (cubit) {
-        cubit.appendDigit('1');
-        cubit.appendDigit('2');
-      },
-      expect: () => [
-        isA<BaseFormState>()
-            .having((s) => s.fields[phoneNumberKey]?.value, 'value', '1')
-            .having((s) => s.isKeypadVisible, 'isKeypadVisible', true), // Ensure other state aspects are covered
-        isA<BaseFormState>()
-            .having((s) => s.fields[phoneNumberKey]?.value, 'value', '12')
-            .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
-      ],
-    );
-
-    blocTest<PhoneNumberCubit, BaseFormState>(
-      'appendDigit does not add digit if max length (10) is reached',
-      build: () {
-        final cubit = PhoneNumberCubit();
-        // Pre-fill to max length
-        cubit.emit(cubit.state.copyWith(
-          fields: {
-            phoneNumberKey: const BaseFormFieldState(value: '1234567890', initialValue: '1234567890'),
-          },
-          isFormValid: true, // Assuming '1234567890' is valid
-        ));
-        return cubit;
-      },
-      act: (cubit) => cubit.appendDigit('1'), // Try to add 11th digit
-      expect: () => [], // No state change as max length reached
-    );
-
-    blocTest<PhoneNumberCubit, BaseFormState>(
-      'appendDigit still allows up to 10 digits',
-      build: () {
-        final cubit = PhoneNumberCubit();
-        // Pre-fill to 9 digits
-        cubit.emit(cubit.state.copyWith(
-          fields: {
-            phoneNumberKey: const BaseFormFieldState(value: '123456789', initialValue: '123456789'),
-          },
-        ));
-        return cubit;
-      },
-      act: (cubit) => cubit.appendDigit('0'), // Add 10th digit
-      expect: () => [
-        isA<BaseFormState>()
-            .having((s) => s.fields[phoneNumberKey]?.value, 'value', '1234567890')
-            .having((s) => s.isFormValid, 'isFormValid', true) // Should become valid
-            .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
-      ],
-    );
-
-    blocTest<PhoneNumberCubit, BaseFormState>(
-      'deleteDigit removes the last digit',
-      build: () {
-        final cubit = PhoneNumberCubit();
-        cubit.emit(cubit.state.copyWith(
-          fields: {
-            phoneNumberKey: const BaseFormFieldState(value: '123', initialValue: '123'),
-          },
-        ));
-        return cubit;
-      },
-      act: (cubit) => cubit.deleteDigit(),
-      expect: () => [
-        isA<BaseFormState>()
-            .having((s) => s.fields[phoneNumberKey]?.value, 'value', '12')
-            .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
-      ],
-    );
-
-    blocTest<PhoneNumberCubit, BaseFormState>(
-      'deleteDigit does nothing if phone number is empty',
-      build: () => PhoneNumberCubit(), // Initial state has empty phone number
-      act: (cubit) => cubit.deleteDigit(),
-      expect: () => [], // No state change
-    );
-
-    blocTest<PhoneNumberCubit, BaseFormState>(
-      'deleteDigit updates validation (e.g., from valid to invalid)',
-      build: () {
-        final cubit = PhoneNumberCubit();
-        // Pre-fill with a valid 10-digit number
-        cubit.emit(cubit.state.copyWith(
-          fields: {
-            phoneNumberKey: const BaseFormFieldState(value: '1234567890', initialValue: '1234567890'),
-          },
-          isFormValid: true, // Explicitly set as valid for test setup
-        ));
-        return cubit;
-      },
-      act: (cubit) => cubit.deleteDigit(), // Delete one digit, making it 9 digits (invalid by current rules)
-      expect: () => [
-        isA<BaseFormState>()
-            .having((s) => s.fields[phoneNumberKey]?.value, 'value', '123456789')
-            .having((s) => s.fields[phoneNumberKey]?.error, 'error', 'Enter a valid 10-digit phone number')
-            .having((s) => s.isFormValid, 'isFormValid', false)
-            .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
-      ],
-    );
-  });
-  // Removed Digit Manipulation group as appendDigit/deleteDigit were removed from cubit
-  // });
-
-  group('onPhoneNumberChangedByUI', () { // Or add to an existing relevant group
-    const String phoneNumberKey = PhoneNumberCubit.phoneNumberKey;
-
-    blocTest<PhoneNumberCubit, BaseFormState>(
-      'onPhoneNumberChangedByUI updates field and triggers validation',
-      build: () => PhoneNumberCubit(),
-      act: (cubit) => cubit.onPhoneNumberChangedByUI('123'),
-      expect: () => [
-        isA<BaseFormState>()
-          .having((s) => s.fields[phoneNumberKey]?.value, 'value', '123')
-          // Check for validation error if '123' is invalid by current rules
-          .having((s) => s.fields[phoneNumberKey]?.error, 'error', 'Enter a valid 10-digit phone number')
-          .having((s) => s.isFormValid, 'isFormValid', false)
-          .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
-      ],
-    );
-
-    blocTest<PhoneNumberCubit, BaseFormState>(
-      'onPhoneNumberChangedByUI updates field with valid number',
-      build: () => PhoneNumberCubit(),
-      act: (cubit) => cubit.onPhoneNumberChangedByUI('1234567890'),
-      expect: () => [
-        isA<BaseFormState>()
-          .having((s) => s.fields[phoneNumberKey]?.value, 'value', '1234567890')
-          .having((s) => s.fields[phoneNumberKey]?.error, 'error', null) // Expect no error
-          .having((s) => s.isFormValid, 'isFormValid', true)     // Expect form to be valid
-          .having((s) => s.isKeypadVisible, 'isKeypadVisible', true),
-      ],
-    );
   });
 }
