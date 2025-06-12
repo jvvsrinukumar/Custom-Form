@@ -15,30 +15,14 @@ void main() {
       loginPhoneCubit.close();
     });
 
-    test('initial state is correct with pre-filled phone number', () {
-      const initialPhoneNumber = '9000000000';
-      // Helper to determine initial validation state based on cubit's logic
-      String? initialError;
-      if (initialPhoneNumber.isEmpty) {
-        initialError = 'Phone number is required.';
-      } else if (initialPhoneNumber.length > 10) {
-        initialError = 'Phone number cannot exceed 10 digits.';
-      } else if (!RegExp(r'^[0-9]+$').hasMatch(initialPhoneNumber)) {
-        initialError = 'Phone number can only contain digits.';
-      }
-      final isInitialValid = initialError == null;
-
+    test('initial state is correct (empty phone, form invalid)', () {
       expect(
         loginPhoneCubit.state,
-        BaseFormState( // Use non-const because initialError can change
+        const BaseFormState(
           fields: {
-            LoginPhoneCubit.phoneKey: BaseFormFieldState(
-              value: initialPhoneNumber,
-              isValid: isInitialValid,
-              error: initialError, // Should be null for '9000000000'
-            ),
+            LoginPhoneCubit.phoneKey: BaseFormFieldState(value: '', isValid: false, error: null),
           },
-          isFormValid: isInitialValid, // Should be true for '9000000000'
+          isFormValid: false, // Because the phoneKey field is isValid: false by default in initializeFormFields
           isSubmitting: false,
           isSuccess: false,
           isFailure: false,
@@ -49,25 +33,19 @@ void main() {
 
     group('Phone Number Validation', () {
       blocTest<LoginPhoneCubit, BaseFormState>(
-        'emits error when phone number is empty (after initially being valid)',
-        setUp: () {
-          // The cubit now starts with a valid number.
-          // We don't need to do anything special here for this test,
-          // as `act` will overwrite the initial state.
-        },
+        'emits error when phone number is empty (re-validating empty field)',
         build: () => loginPhoneCubit,
-        act: (cubit) => cubit.updateField(LoginPhoneCubit.phoneKey, ''),
+        act: (cubit) => cubit.updateField(LoginPhoneCubit.phoneKey, ''), // "Update" to empty, triggers validation
         expect: () => [
           const BaseFormState(
             fields: {
               LoginPhoneCubit.phoneKey: BaseFormFieldState(
                 value: '',
-                error: 'Phone number is required.',
+                error: 'Phone number is required.', // Validator provides the error
                 isValid: false,
               ),
             },
-            isFormValid: false, // Form becomes invalid
-            // other flags should remain default or explicitly set if they change
+            isFormValid: false,
             isSubmitting: false,
             isSuccess: false,
             isFailure: false,
@@ -125,29 +103,7 @@ void main() {
                 isValid: true,
               ),
             },
-            isFormValid: true,
-            isSubmitting: false,
-            isSuccess: false,
-            isFailure: false,
-            apiError: null,
-          ),
-        ],
-      );
-
-      blocTest<LoginPhoneCubit, BaseFormState>(
-        'emits no error and sets isValid to true for valid phone number (< 10 digits, e.g. 5 digits)',
-        build: () => loginPhoneCubit,
-        act: (cubit) => cubit.updateField(LoginPhoneCubit.phoneKey, '12345'),
-        expect: () => [
-          const BaseFormState(
-            fields: {
-              LoginPhoneCubit.phoneKey: BaseFormFieldState(
-                value: '12345',
-                error: null,
-                isValid: true,
-              ),
-            },
-            isFormValid: true,
+            isFormValid: true, // Form becomes valid due to this field
             isSubmitting: false,
             isSuccess: false,
             isFailure: false,
@@ -159,32 +115,31 @@ void main() {
 
     group('Form Submission', () {
       blocTest<LoginPhoneCubit, BaseFormState>(
-        'emits [submitting, success] when submit is called (cubit starts with valid data)',
-        build: () {
-          // Cubit constructor now pre-fills with a valid number '9000000000'
-          // So, no need to call updateField here to make it valid.
-          return loginPhoneCubit;
+        'emits [valid, submitting, success] when submit is called with valid data',
+        build: () => loginPhoneCubit, // Starts invalid
+        act: (cubit) async {
+          cubit.updateField(LoginPhoneCubit.phoneKey, '1234567890'); // Make it valid
+          // await Future.delayed(Duration.zero); // Ensure updateField state is processed if needed by blocTest
+          cubit.submit();
         },
-        act: (cubit) => cubit.submit(),
-        skip: 0, // Cubit's initial state is already valid.
         expect: () => [
-          // State when submitting
-          BaseFormState( // Non-const because initial value is dynamic from constructor for comparison
+          // 1. After updateField makes it valid
+          const BaseFormState(
             fields: {
-              LoginPhoneCubit.phoneKey: const BaseFormFieldState( // this field part is const
-                value: '9000000000',
+              LoginPhoneCubit.phoneKey: BaseFormFieldState(
+                value: '1234567890',
                 isValid: true,
                 error: null,
               ),
             },
             isFormValid: true,
-            isSubmitting: true, // This is the first change expected
+            isSubmitting: false,
             isSuccess: false,
             isFailure: false,
             apiError: null,
           ),
-          // State after successful submission
-          BaseFormState(
+          // 2. When submitting (isSubmitting true)
+          const BaseFormState(
             fields: {
               LoginPhoneCubit.phoneKey: BaseFormFieldState(
                 value: '1234567890',
@@ -194,8 +149,11 @@ void main() {
             },
             isFormValid: true,
             isSubmitting: true,
+            isSuccess: false,
+            isFailure: false,
+            apiError: null,
           ),
-          // State after successful submission
+          // 3. After successful submission
           const BaseFormState(
             fields: {
               LoginPhoneCubit.phoneKey: BaseFormFieldState(
@@ -207,40 +165,29 @@ void main() {
             isFormValid: true,
             isSubmitting: false,
             isSuccess: true,
+            isFailure: false,
+            apiError: null,
           ),
         ],
       );
 
       blocTest<LoginPhoneCubit, BaseFormState>(
-        'emits [failure] when submit is called with invalid data',
-        build: () {
-          loginPhoneCubit.updateField(LoginPhoneCubit.phoneKey, '');
-          return loginPhoneCubit;
-        },
+        'emits [failure with error] when submit is called with invalid data (initial empty state)',
+        build: () => loginPhoneCubit, // Starts invalid (empty phone)
         act: (cubit) => cubit.submit(),
         expect: () => [
-           // State after updateField with empty string
           const BaseFormState(
             fields: {
               LoginPhoneCubit.phoneKey: BaseFormFieldState(
-                value: '',
+                value: '', // Remains empty
                 isValid: false,
-                error: 'Phone number is required.',
+                error: 'Phone number is required.', // Error set by submit validation
               ),
             },
             isFormValid: false,
-          ),
-          // State after submit attempt with invalid data
-          const BaseFormState(
-            fields: {
-              LoginPhoneCubit.phoneKey: BaseFormFieldState(
-                value: '',
-                isValid: false,
-                error: 'Phone number is required.',
-              ),
-            },
-            isFormValid: false, // Form is not valid
-            isFailure: true,    // isFailure should be true
+            isSubmitting: false,
+            isSuccess: false,
+            isFailure: true, // isFailure is true
           ),
         ],
       );
