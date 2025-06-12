@@ -1,4 +1,4 @@
-import 'package:custom_form/ui/login/login_page.dart';
+import 'package:custom_form/ui/navigation_page.dart'; // Import the new navigation page
 // import 'package:custom_form/ui/register/register_page.dart'; // This was already commented out or can be if not used
 import 'package:flutter/material.dart';
 
@@ -18,7 +18,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         visualDensity: VisualDensity.adaptivePlatformDensity, // This can remain
       ),
-      home: const LoginPage(), // Set LoginPage as home
+      home: const NavigationPage(), // Set NavigationPage as home
     );
   }
 }
