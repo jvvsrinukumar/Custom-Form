@@ -5,6 +5,7 @@ import 'package:custom_form/ui/login/login_page.dart';
 import 'package:custom_form/ui/navigation_page.dart';
 import 'package:custom_form/ui/phone_number/phone_number_page.dart';
 import 'package:custom_form/ui/register/register_page.dart';
+import 'package:custom_form/ui/login_phone/login_phone_page.dart'; // Add this
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

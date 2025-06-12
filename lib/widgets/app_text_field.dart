@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Required for TextInputFormatter
 
 class AppTextField extends StatefulWidget {
   final String label;
-  final String? value; // New: To set text from outside and reflect cubit state
+  final String? value;
   final String? errorText;
   final bool obscureText;
   final TextInputType keyboardType;
-  final Function(String)?
-      onChanged; // This will be called when the text actually changes
+  final Function(String)? onChanged;
   final Widget? suffixIcon;
-  // The existing 'controller' property is removed.
+  final List<TextInputFormatter>? inputFormatters; // Added property
 
   const AppTextField({
     super.key,
@@ -20,6 +20,7 @@ class AppTextField extends StatefulWidget {
     this.keyboardType = TextInputType.text,
     this.onChanged,
     this.suffixIcon,
+    this.inputFormatters, // Added to constructor
   });
 
   @override
@@ -32,19 +33,32 @@ class _AppTextFieldState extends State<AppTextField> {
   @override
   void initState() {
     super.initState();
-    // Initialize the internal controller with the initial value from the widget.
     _controller = TextEditingController(text: widget.value);
+  }
+
+  // Synchronize controller if widget.value changes from outside
+  @override
+  void didUpdateWidget(AppTextField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value && widget.value != _controller.text) {
+      _controller.text = widget.value ?? '';
+      // Move cursor to end of text after programmatic change
+      _controller.selection = TextSelection.fromPosition(TextPosition(offset: _controller.text.length));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // The TextField now always uses the internal _controller.
-    // Its onChanged callback will propagate to widget.onChanged.
     return TextField(
       controller: _controller,
       obscureText: widget.obscureText,
       keyboardType: widget.keyboardType,
-      onChanged: widget.onChanged, // Propagate changes upwards
+      inputFormatters: widget.inputFormatters, // Passed to internal TextField
+      onChanged: (value) {
+        // If there's an external onChanged, call it.
+        // This ensures that the cubit's updateField is still triggered.
+        widget.onChanged?.call(value);
+      },
       decoration: InputDecoration(
         labelText: widget.label,
         errorText: widget.errorText,
@@ -58,7 +72,7 @@ class _AppTextFieldState extends State<AppTextField> {
 
   @override
   void dispose() {
-    _controller.dispose(); // Dispose the internal controller
+    _controller.dispose();
     super.dispose();
   }
 }
